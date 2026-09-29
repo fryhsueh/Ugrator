@@ -8,14 +8,26 @@ import threading
 import queue
 from playwright.sync_api import sync_playwright
 
+NODE_TYPE_ALIASES = {
+    "play_prompt": "voice_playback",
+    "play_voice": "voice_playback",
+    "prompt": "voice_playback",
+    "playback": "voice_playback",
+    "outside_line": "transfer_external",
+    "transfer_external_number": "transfer_external",
+    "transfer_outside": "transfer_external",
+}
+
 NODE_TYPE_PALETTE_MAP = {
-    "start": "Start",
-    "voice_playback": "Voice playback",
+    "start": "Start node",
+    "voice_playback": "Play prompt",
+    "play_prompt": "Play prompt",
+    "play_voice": "Play prompt",
     "collect_input": "Collect input",
     "enter_queue": "Enter Queue",
     "info_judgment": "information judgment",
-    "hang_up": "Voice playback",
-    "transfer_external": "Transfer to outside line",
+    "hang_up": "Play prompt",
+    "transfer_external": "Transfer to external number",
     "speech_recognition": "Speech Recognition",
     "voice_message": "Voice Message",
     "external_interface": "External Interface",
@@ -25,6 +37,8 @@ NODE_TYPE_PALETTE_MAP = {
 NODE_TYPE_PALETTE_MAP_CN = {
     "start": "开始",
     "voice_playback": "放音",
+    "play_prompt": "放音",
+    "play_voice": "放音",
     "collect_input": "按键收号",
     "enter_queue": "转人工",
     "info_judgment": "信息判断",
@@ -34,6 +48,22 @@ NODE_TYPE_PALETTE_MAP_CN = {
     "voice_message": "语音留言",
     "external_interface": "外部接口",
     "satisfaction_survey": "满意度调查"
+}
+
+NODE_TYPE_PALETTE_CANDIDATES = {
+    "start": ["Start node", "Start", "开始"],
+    "voice_playback": ["Play prompt", "Voice playback", "Play voice", "放音"],
+    "play_prompt": ["Play prompt", "Voice playback", "Play voice", "放音"],
+    "play_voice": ["Play prompt", "Voice playback", "Play voice", "放音"],
+    "collect_input": ["Collect input", "按键收号"],
+    "enter_queue": ["Enter Queue", "转人工"],
+    "info_judgment": ["information judgment", "信息判断"],
+    "hang_up": ["Play prompt", "Voice playback", "放音"],
+    "transfer_external": ["Transfer to external number", "Transfer to outside line", "转外线"],
+    "speech_recognition": ["Speech Recognition", "语音识别"],
+    "voice_message": ["Voice Message", "语音留言"],
+    "external_interface": ["External Interface", "外部接口"],
+    "satisfaction_survey": ["satisfaction survey", "满意度调查"]
 }
 
 def _validate_and_layout_nodes(nodes, canvas_name="IVR Flow", is_multi=False):
@@ -70,11 +100,14 @@ def _validate_and_layout_nodes(nodes, canvas_name="IVR Flow", is_multi=False):
             return False, f"Duplicate node id detected{prefix}: '{nid}'.", None, None, None
         node_ids.add(nid)
         
-        ntype = str(node.get("type", "")).lower()
+        raw_ntype = str(node.get("type", "")).lower()
+        ntype = NODE_TYPE_ALIASES.get(raw_ntype, raw_ntype)
         if ntype not in NODE_TYPE_PALETTE_MAP:
-            valid_types = ", ".join(NODE_TYPE_PALETTE_MAP.keys())
+            valid_types = ", ".join(sorted(set(NODE_TYPE_PALETTE_MAP.keys())))
             prefix = f" in canvas '{canvas_name}'" if is_multi else ""
-            return False, f"Node '{nid}'{prefix} has unknown type '{ntype}'. Valid types: {valid_types}", None, None, None
+            return False, f"Node '{nid}'{prefix} has unknown type '{raw_ntype}'. Valid types: {valid_types}", None, None, None
+        
+        node["type"] = ntype
         
         if ntype == "start":
             start_count += 1
@@ -889,7 +922,9 @@ def _build_single_canvas(target_page, canvas_frame, nodes, canvas_title, canvas_
         title = node.get("title", nid)
         x = node.get("x", 150)
         y = node.get("y", 250)
-        palette_text = NODE_TYPE_PALETTE_MAP.get(ntype, "Voice playback")
+        palette_text = NODE_TYPE_PALETTE_MAP.get(ntype, "Play prompt")
+        candidates = NODE_TYPE_PALETTE_CANDIDATES.get(ntype, [palette_text])
+        cn_palette_text = NODE_TYPE_PALETTE_MAP_CN.get(ntype)
 
         q.put(send_log("progress", f"[{canvas_idx}/{total_canvases}] [{idx}/{total_nodes}] Placing '{title}' ({palette_text}) at ({x}, {y})...", {"node_id": nid, "status": "placing"}))
 
@@ -898,7 +933,7 @@ def _build_single_canvas(target_page, canvas_frame, nodes, canvas_title, canvas_
         # Check if node is Start and already exists on canvas
         new_node_loc = None
         if ntype == "start":
-            existing_start = canvas_frame.locator(".flow-process-detail-node:has-text('Start'), .flow-process-detail-node:has-text('开始')")
+            existing_start = canvas_frame.locator(".flow-process-detail-node:has-text('Start node'), .flow-process-detail-node:has-text('Start'), .flow-process-detail-node:has-text('开始')")
             if existing_start.count() > 0:
                 new_node_loc = existing_start.first
             elif len(placed_nodes) == 0:
@@ -907,19 +942,26 @@ def _build_single_canvas(target_page, canvas_frame, nodes, canvas_title, canvas_
                     new_node_loc = existing_nodes.first
 
         if not new_node_loc:
-            # Locate source item in side palette (English or Chinese)
-            source_loc = canvas_frame.locator(f"div.page-flow-process-node:has-text('{palette_text}')").first
-            cn_palette_text = NODE_TYPE_PALETTE_MAP_CN.get(ntype)
-            if source_loc.count() == 0 and cn_palette_text:
-                source_loc = canvas_frame.locator(f"div.page-flow-process-node:has-text('{cn_palette_text}')").first
-            
-            if source_loc.count() == 0:
-                source_loc, _ = wait_for_locator_and_frame(target_page, f"div.page-flow-process-node:has-text('{palette_text}')", timeout=3)
-                if not source_loc and cn_palette_text:
-                    source_loc, _ = wait_for_locator_and_frame(target_page, f"div.page-flow-process-node:has-text('{cn_palette_text}')", timeout=2)
+            # Locate source item in side palette or top toolbar across all candidate names (English modern, legacy, or Chinese)
+            source_loc = None
+            matched_candidate = None
+            for cand in candidates:
+                loc = canvas_frame.locator(f"div.page-flow-process-node:has-text('{cand}'), .page-flow-process-node:has-text('{cand}')").first
+                if loc.count() > 0:
+                    source_loc = loc
+                    matched_candidate = cand
+                    break
 
             if not source_loc or source_loc.count() == 0:
-                q.put(send_log("error", f"Could not find palette item '{palette_text}' for node '{title}' on canvas '{canvas_title}'."))
+                for cand in candidates:
+                    loc, _ = wait_for_locator_and_frame(target_page, f"div.page-flow-process-node:has-text('{cand}'), .page-flow-process-node:has-text('{cand}')", timeout=1.5)
+                    if loc and loc.count() > 0:
+                        source_loc = loc
+                        matched_candidate = cand
+                        break
+
+            if not source_loc or source_loc.count() == 0:
+                q.put(send_log("error", f"Could not find palette item for node '{title}' (tried: {', '.join(candidates)}) on canvas '{canvas_title}'."))
                 return False
 
             # Capture set of existing DOM node IDs before drag
@@ -976,7 +1018,7 @@ def _build_single_canvas(target_page, canvas_frame, nodes, canvas_title, canvas_
             if not new_node_loc:
                 for n_el in canvas_frame.locator(".flow-process-detail-node").all():
                     n_text = n_el.inner_text().lower()
-                    if palette_text.lower() in n_text or (cn_palette_text and cn_palette_text in n_text):
+                    if any(c.lower() in n_text for c in candidates):
                         already_configured = any(p.get("title", "").lower() in n_text for p in placed_nodes.values())
                         if not already_configured:
                             new_node_loc = n_el
@@ -1041,7 +1083,14 @@ def _build_single_canvas(target_page, canvas_frame, nodes, canvas_title, canvas_
                         pass
                     gear_icon.first.click(force=True)
                     time.sleep(1)
-                    voice_modal, _ = wait_for_locator_and_frame(target_page, '.ccpaas-app-web-modal-content:has-text("Voice"), .ccpaas-app-web-modal-content:has-text("语音")', timeout=3)
+                    voice_modal, _ = wait_for_locator_and_frame(
+                        target_page,
+                        '.ccpaas-app-web-modal-content:has-text("Voice"), .ccpaas-app-web-modal-content:has-text("Prompt"), .ccpaas-app-web-modal-content:has-text("Audio"), .ccpaas-app-web-modal-content:has-text("语音"), '
+                        '.ant-modal-content:has-text("Voice"), .ant-modal-content:has-text("Prompt"), .ant-modal-content:has-text("Audio"), .ant-modal-content:has-text("语音")',
+                        timeout=3
+                    )
+                    if not voice_modal or voice_modal.count() == 0:
+                        voice_modal, _ = wait_for_locator_and_frame(target_page, '.ccpaas-app-web-modal-content, .ant-modal-content', timeout=1.5)
                     if voice_modal and voice_modal.count() > 0:
                         search_box = voice_modal.locator('input.ccpaas-app-web-input, input[placeholder*="search"], input[placeholder*="搜索"]').first
                         if search_box.count() > 0:

@@ -344,6 +344,46 @@ class TestIVRModule(unittest.TestCase):
             c_input = collect_nodes[0]
             self.assertEqual(c_input["routes"].get("default"), judg_node["id"])
 
+    def test_play_prompt_node_type_alias_and_candidates(self):
+        from core.ivr import NODE_TYPE_PALETTE_CANDIDATES, NODE_TYPE_PALETTE_MAP
+
+        # Verify palette candidate mappings for multi-tenant environments
+        self.assertIn("Play prompt", NODE_TYPE_PALETTE_CANDIDATES["voice_playback"])
+        self.assertIn("Voice playback", NODE_TYPE_PALETTE_CANDIDATES["voice_playback"])
+        self.assertIn("放音", NODE_TYPE_PALETTE_CANDIDATES["voice_playback"])
+        self.assertIn("Transfer to external number", NODE_TYPE_PALETTE_CANDIDATES["transfer_external"])
+        self.assertIn("Start node", NODE_TYPE_PALETTE_CANDIDATES["start"])
+
+        # Test parsing YAML with type: play_prompt
+        yaml_with_play_prompt = """
+        ivr_name: "Modern Tenant IVR"
+        nodes:
+          - id: start_node
+            type: start
+            title: "Start node"
+            routes:
+              default: prompt_welcome
+          - id: prompt_welcome
+            type: play_prompt
+            title: "Welcome Greeting"
+            audio: "Welcome_Audio_1"
+            routes:
+              default: prompt_menu
+          - id: prompt_menu
+            type: play_voice
+            title: "Menu Voice"
+            audio: "Menu_Audio_2"
+        """
+        res = parse_ivr_workflow(yaml_with_play_prompt)
+        self.assertTrue(res["valid"])
+        self.assertEqual(len(res["nodes"]), 3)
+        self.assertEqual(res["nodes"][1]["type"], "voice_playback")
+        self.assertEqual(res["nodes"][2]["type"], "voice_playback")
+        self.assertEqual(res["summary"]["type_breakdown"]["voice_playback"], 2)
+        self.assertIn("Welcome_Audio_1", res["referenced_voices"])
+        self.assertIn("Menu_Audio_2", res["referenced_voices"])
+
 if __name__ == '__main__':
     unittest.main()
+
 

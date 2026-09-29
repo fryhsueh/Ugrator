@@ -13,14 +13,17 @@
 
 ## Supported Node Types
 
-| Node Type | Purpose | Key Attributes |
-| :--- | :--- | :--- |
-| `menu` | Multi-digit branch menu | `prompt_voice`, `timeout_seconds`, `max_retries`, `branches` (key: '1', '2', etc.), `timeout_target`, `invalid_target` |
-| `play_voice` | Plays an announcement audio | `voice_file`, `next_node` |
-| `transfer_group` | Transfers call to agent group | `group_name` |
-| `info_judgment` | Branch based on customer attributes (e.g. VIP, region) | `rules` (field, operator, value, target), `default_target` |
-| `time_judgment` | Branch based on working hours | `schedule`, `in_hours_target`, `out_of_hours_target` |
-| `jump` | Cross-canvas or intra-canvas link | `target_node` |
+| Node Type | UI Label (Auto-detected across tenants) | Purpose | Key Attributes |
+| :--- | :--- | :--- | :--- |
+| `start` | `Start node` / `Start` / `开始` | Entry point of canvas | `id`, `routes` (`default`) |
+| `play_prompt` / `voice_playback` / `play_voice` | `Play prompt` / `Voice playback` / `放音` | Plays prompt audio or greeting announcement | `audio`, `routes` (`default`) |
+| `collect_input` | `Collect input` / `按键收号` | DTMF digit collection menu | `audio`, `config` (`timeout_seconds`, `max_retries`), `routes` (`keys`, `timeout`, `invalid`) |
+| `enter_queue` | `Enter Queue` / `转人工` | Routes call to agent group queue | `config` (`group_name`), `routes` (`default`) |
+| `info_judgment` | `information judgment` / `信息判断` | Conditional branching based on customer/IVR attributes | `rules` (`name`, `variable`, `operator`, `value`, `target`), `routes` (`default`) |
+| `hang_up` | `Play prompt` / `Voice playback` / `放音` (end call action) | Terminates call session | `audio`, `routes` |
+| `transfer_external` | `Transfer to external number` / `Transfer to outside line` / `转外线` | Transfers call to PSTN / external number | `config` (`phone_number`), `routes` (`default`) |
+| `speech_recognition` | `Speech Recognition` / `语音识别` | ASR speech recognition branch | `config`, `routes` |
+| `voice_message` | `Voice Message` / `语音留言` | Voicemail recording | `config`, `routes` |
 
 ## Demonstration Output
 

@@ -1,0 +1,461 @@
+ivr_name: "Sample Customer Service IVR"
+nodes:
+  - id: start_node
+    type: start
+    title: "Start"
+    routes:
+      default: initial_greeting
+
+  - id: initial_greeting
+    type: voice_playback
+    title: "Initial Greeting"
+    audio: "Sample_Welcome_MSG"
+    routes:
+      default: lang_selection
+
+  - id: lang_selection
+    type: collect_input
+    title: "Language Selection"
+    audio: "Sample_LangSelect_MSG"
+    routes:
+      default: lang_judgment
+      timeout: en_main_menu
+      invalid: en_main_menu
+
+  - id: lang_judgment
+    type: info_judgment
+    title: "Language Judgment"
+    rules:
+      - name: "Arabic"
+        variable: "User Input"
+        operator: "Equal"
+        value: "1"
+        target: ar_main_menu
+      - name: "English"
+        variable: "User Input"
+        operator: "Equal"
+        value: "2"
+        target: en_main_menu
+    routes:
+      default: en_main_menu
+
+  # ==========================================
+  # ENGLISH BRANCH
+  # ==========================================
+  - id: en_main_menu
+    type: collect_input
+    title: "EN Main Menu"
+    audio: "Sample_EN_MainMenu_MSG"
+    routes:
+      default: en_menu_judgment
+      timeout: en_no_input
+      invalid: en_invalid_input
+
+  - id: en_menu_judgment
+    type: info_judgment
+    title: "EN Menu Judgment"
+    rules:
+      - name: "Sales"
+        variable: "User Input"
+        operator: "Equal"
+        value: "1"
+        target: en_pre_queue_sales
+      - name: "Service"
+        variable: "User Input"
+        operator: "Equal"
+        value: "2"
+        target: en_pre_queue_service
+      - name: "Spare Parts"
+        variable: "User Input"
+        operator: "Equal"
+        value: "3"
+        target: en_pre_queue_parts
+      - name: "Locations"
+        variable: "User Input"
+        operator: "Equal"
+        value: "4"
+        target: en_locations_menu
+      - name: "Feedback"
+        variable: "User Input"
+        operator: "Equal"
+        value: "5"
+        target: en_pre_queue_feedback
+      - name: "Roadside Assist"
+        variable: "User Input"
+        operator: "Equal"
+        value: "9"
+        target: rsa_transfer_node
+    routes:
+      default: en_invalid_input
+
+  - id: en_locations_menu
+    type: collect_input
+    title: "EN Locations Menu"
+    audio: "Sample_EN_Locations_MSG"
+    routes:
+      default: en_loc_judgment
+      timeout: en_no_input
+      invalid: en_invalid_input
+
+  - id: en_loc_judgment
+    type: info_judgment
+    title: "EN Locations Judge"
+    rules:
+      - name: "Dubai"
+        variable: "User Input"
+        operator: "Equal"
+        value: "1"
+        target: en_pre_queue_dubai
+      - name: "Sharjah Northern"
+        variable: "User Input"
+        operator: "Equal"
+        value: "2"
+        target: en_pre_queue_sharjah
+      - name: "Abu Dhabi Al Ain"
+        variable: "User Input"
+        operator: "Equal"
+        value: "3"
+        target: en_pre_queue_abudhabi
+    routes:
+      default: en_invalid_input
+
+  # English Pre-Queue Connecting Announcements (Recording & Survey notice)
+  - id: en_pre_queue_sales
+    type: voice_playback
+    title: "EN Connect Sales"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_sales
+
+  - id: en_pre_queue_service
+    type: voice_playback
+    title: "EN Connect Service"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_service
+
+  - id: en_pre_queue_parts
+    type: voice_playback
+    title: "EN Connect Parts"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_parts
+
+  - id: en_pre_queue_feedback
+    type: voice_playback
+    title: "EN Connect Feedback"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_feedback
+
+  - id: en_pre_queue_dubai
+    type: voice_playback
+    title: "EN Connect Dubai"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_dubai
+
+  - id: en_pre_queue_sharjah
+    type: voice_playback
+    title: "EN Connect Sharjah"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_sharjah
+
+  - id: en_pre_queue_abudhabi
+    type: voice_playback
+    title: "EN Connect AbuDhabi"
+    audio: "Sample_EN_Connecting_MSG"
+    routes:
+      default: en_queue_abudhabi
+
+  # English Agent Skill Queues
+  - id: en_queue_sales
+    type: enter_queue
+    title: "EN Sales Queue"
+    config:
+      group_name: "English Sales"
+
+  - id: en_queue_service
+    type: enter_queue
+    title: "EN Service Queue"
+    config:
+      group_name: "English Service"
+
+  - id: en_queue_parts
+    type: enter_queue
+    title: "EN Spare Parts Queue"
+    config:
+      group_name: "English Spare Parts"
+
+  - id: en_queue_feedback
+    type: enter_queue
+    title: "EN Feedback Queue"
+    config:
+      group_name: "English Feedback"
+
+  - id: en_queue_dubai
+    type: enter_queue
+    title: "Dubai Location Queue"
+    config:
+      group_name: "Showroom Dubai"
+
+  - id: en_queue_sharjah
+    type: enter_queue
+    title: "Sharjah Loc Queue"
+    config:
+      group_name: "Showroom Sharjah"
+
+  - id: en_queue_abudhabi
+    type: enter_queue
+    title: "AbuDhabi Loc Queue"
+    config:
+      group_name: "Showroom Abu Dhabi"
+
+  # English Error & Fallback Nodes (With 2-Retry & Website Fallback)
+  - id: en_no_input
+    type: voice_playback
+    title: "EN No Input Notice"
+    audio: "Sample_EN_NoInput_MSG"
+    routes:
+      default: en_retry_menu
+
+  - id: en_invalid_input
+    type: voice_playback
+    title: "EN Invalid Input"
+    audio: "Sample_EN_Invalid_MSG"
+    routes:
+      default: en_retry_menu
+
+  - id: en_retry_menu
+    type: collect_input
+    title: "EN Menu Retry"
+    audio: "Sample_EN_MainMenu_MSG"
+    routes:
+      default: en_menu_judgment
+      timeout: en_website_fallback
+      invalid: en_website_fallback
+
+  - id: en_website_fallback
+    type: voice_playback
+    title: "EN Website Fallback"
+    audio: "Sample_EN_Website_MSG"
+    routes:
+      default: end_call_node
+
+  # ==========================================
+  # ARABIC BRANCH
+  # ==========================================
+  - id: ar_main_menu
+    type: collect_input
+    title: "AR Main Menu"
+    audio: "Sample_AR_MainMenu_MSG"
+    routes:
+      default: ar_menu_judgment
+      timeout: ar_no_input
+      invalid: ar_invalid_input
+
+  - id: ar_menu_judgment
+    type: info_judgment
+    title: "AR Menu Judgment"
+    rules:
+      - name: "Sales"
+        variable: "User Input"
+        operator: "Equal"
+        value: "1"
+        target: ar_pre_queue_sales
+      - name: "Service"
+        variable: "User Input"
+        operator: "Equal"
+        value: "2"
+        target: ar_pre_queue_service
+      - name: "Spare Parts"
+        variable: "User Input"
+        operator: "Equal"
+        value: "3"
+        target: ar_pre_queue_parts
+      - name: "Locations"
+        variable: "User Input"
+        operator: "Equal"
+        value: "4"
+        target: ar_locations_menu
+      - name: "Feedback"
+        variable: "User Input"
+        operator: "Equal"
+        value: "5"
+        target: ar_pre_queue_feedback
+      - name: "Roadside Assist"
+        variable: "User Input"
+        operator: "Equal"
+        value: "9"
+        target: rsa_transfer_node
+    routes:
+      default: ar_invalid_input
+
+  - id: ar_locations_menu
+    type: collect_input
+    title: "AR Locations Menu"
+    audio: "Sample_AR_Locations_MSG"
+    routes:
+      default: ar_loc_judgment
+      timeout: ar_no_input
+      invalid: ar_invalid_input
+
+  - id: ar_loc_judgment
+    type: info_judgment
+    title: "AR Locations Judge"
+    rules:
+      - name: "Dubai"
+        variable: "User Input"
+        operator: "Equal"
+        value: "1"
+        target: ar_pre_queue_dubai
+      - name: "Sharjah Northern"
+        variable: "User Input"
+        operator: "Equal"
+        value: "2"
+        target: ar_pre_queue_sharjah
+      - name: "Abu Dhabi Al Ain"
+        variable: "User Input"
+        operator: "Equal"
+        value: "3"
+        target: ar_pre_queue_abudhabi
+    routes:
+      default: ar_invalid_input
+
+  # Arabic Pre-Queue Connecting Announcements
+  - id: ar_pre_queue_sales
+    type: voice_playback
+    title: "AR Connect Sales"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_sales
+
+  - id: ar_pre_queue_service
+    type: voice_playback
+    title: "AR Connect Service"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_service
+
+  - id: ar_pre_queue_parts
+    type: voice_playback
+    title: "AR Connect Parts"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_parts
+
+  - id: ar_pre_queue_feedback
+    type: voice_playback
+    title: "AR Connect Feedback"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_feedback
+
+  - id: ar_pre_queue_dubai
+    type: voice_playback
+    title: "AR Connect Dubai"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_dubai
+
+  - id: ar_pre_queue_sharjah
+    type: voice_playback
+    title: "AR Connect Sharjah"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_sharjah
+
+  - id: ar_pre_queue_abudhabi
+    type: voice_playback
+    title: "AR Connect AbuDhabi"
+    audio: "Sample_AR_Connecting_MSG"
+    routes:
+      default: ar_queue_abudhabi
+
+  # Arabic Agent Skill Queues
+  - id: ar_queue_sales
+    type: enter_queue
+    title: "AR Sales Queue"
+    config:
+      group_name: "Arabic Sales"
+
+  - id: ar_queue_service
+    type: enter_queue
+    title: "AR Service Queue"
+    config:
+      group_name: "Arabic Service"
+
+  - id: ar_queue_parts
+    type: enter_queue
+    title: "AR Spare Parts Queue"
+    config:
+      group_name: "Arabic Spare Parts"
+
+  - id: ar_queue_feedback
+    type: enter_queue
+    title: "AR Feedback Queue"
+    config:
+      group_name: "Arabic Feedback"
+
+  - id: ar_queue_dubai
+    type: enter_queue
+    title: "AR Dubai Loc Queue"
+    config:
+      group_name: "Arabic Showroom Dubai"
+
+  - id: ar_queue_sharjah
+    type: enter_queue
+    title: "AR Sharjah Queue"
+    config:
+      group_name: "Arabic Showroom Sharjah"
+
+  - id: ar_queue_abudhabi
+    type: enter_queue
+    title: "AR AbuDhabi Queue"
+    config:
+      group_name: "Arabic Showroom Abu Dhabi"
+
+  # Arabic Error & Fallback Nodes
+  - id: ar_no_input
+    type: voice_playback
+    title: "AR No Input Notice"
+    audio: "Sample_AR_NoInput_MSG"
+    routes:
+      default: ar_retry_menu
+
+  - id: ar_invalid_input
+    type: voice_playback
+    title: "AR Invalid Input"
+    audio: "Sample_AR_Invalid_MSG"
+    routes:
+      default: ar_retry_menu
+
+  - id: ar_retry_menu
+    type: collect_input
+    title: "AR Menu Retry"
+    audio: "Sample_AR_MainMenu_MSG"
+    routes:
+      default: ar_menu_judgment
+      timeout: ar_website_fallback
+      invalid: ar_website_fallback
+
+  - id: ar_website_fallback
+    type: voice_playback
+    title: "AR Website Fallback"
+    audio: "Sample_AR_Website_MSG"
+    routes:
+      default: end_call_node
+
+  # ==========================================
+  # SHARED TERMINAL & EXTERNAL NODES
+  # ==========================================
+  - id: rsa_transfer_node
+    type: transfer_external
+    title: "Roadside Assistance"
+    config:
+      phone_number: "+18005550199"
+
+  - id: end_call_node
+    type: hang_up
+    title: "End Call"

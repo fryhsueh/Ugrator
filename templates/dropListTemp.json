@@ -1,0 +1,30 @@
+{
+    "select_field": {
+        "title": "newdroplist",
+        "comment": "single select",
+        "placeholder": "",
+        "tooltip": "",
+        "customer_permission": 3,
+        "view_type": 0,
+        "select_options": [
+            {
+                "title": "test1",
+                "value": ""
+            },
+            {
+                "title": "test2",
+                "value": ""
+            },
+            {
+                "title": "test3",
+                "value": ""
+            },
+            {
+                "title": "test4",
+                "value": ""
+            }
+        ],
+        "field_owner": "Ticket",
+        "content_type": "droplist"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "select_field": {
+        "title": "chainlist",
+        "comment": "",
+        "placeholder": "",
+        "tooltip": "",
+        "customer_permission": 3,
+        "view_type": 0,
+        "full_select": false,
+        "select_options": [
+            {
+                "title": "Beijing",
+                "subs": [
+                    {
+                        "title": "Haidian",
+                        "subs": [
+                            {
+                                "title": "Zhichunlu",
+                                "subs": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "title": "Tianjing",
+                "subs": [
+                    {
+                        "title": "HePing",
+                        "subs": []
+                    }
+                ]
+            }
+        ],
+        "field_owner": "Ticket",
+        "content_type": "chained_droplist"
+    }
+}

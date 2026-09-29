@@ -1,0 +1,31 @@
+{
+    "text_field": {
+        "title": "text",
+        "comment": "",
+        "placeholder": "",
+        "tooltip": "",
+        "rule_type": "",
+        "agent_permission": 2,
+        "customer_permission": 1,
+        "is_search": false,
+        "is_sensitive_field": false,
+        "is_unique": false,
+        "is_relate_duplicate": false,
+        "rule_expression": "",
+        "calculate_null_option": "",
+        "calculate_result_type": "",
+        "sensitive_mode": 0,
+        "sensitive_mark_size": "",
+        "sensitive_mark_position": "",
+        "file_size_limit": 20,
+        "file_count_limit": 5,
+        "file_type_limit": false,
+        "file_type": "",
+        "file_suffix": "",
+        "custom_file_suffix": "",
+        "init_height": 2,
+        "is_standard": false,
+        "field_owner": "Ticket",
+        "content_type": "text"
+    }
+}

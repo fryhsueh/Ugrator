@@ -1,0 +1,35 @@
+ivr_name: "Sample Customer Service After-Hours IVR"
+nodes:
+  - id: start_node
+    type: start
+    title: "Start"
+    routes:
+      default: afterhours_menu
+
+  - id: afterhours_menu
+    type: collect_input
+    title: "After-Hours Menu"
+    audio: "Sample_AfterHours_MSG"
+    routes:
+      keys:
+        "9": rsa_transfer_node
+        "1": callback_confirm_node
+      timeout: end_call_node
+      invalid: afterhours_menu
+
+  - id: rsa_transfer_node
+    type: transfer_external
+    title: "Roadside Assistance"
+    config:
+      phone_number: "+18005550199"
+
+  - id: callback_confirm_node
+    type: voice_playback
+    title: "Callback Confirm"
+    audio: "Sample_Callback_Confirm_MSG"
+    routes:
+      default: end_call_node
+
+  - id: end_call_node
+    type: hang_up
+    title: "End Call"

@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ugrator - Universal CC &amp; ITSM Migration Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <h1>UGRATOR<span>SUITE</span></h1>
+            </div>
+            <p>Universal automation toolkit for cloud contact center &amp; ticketing tenants.</p>
+        </header>
+
+        <main>
+            <div class="global-auth form-group"
+                style="margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="global-auth-script" style="color: var(--accent-blue); margin-bottom: 0;">Global
+                        Authentication Script (PowerShell)</label>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="domain-selector-wrapper" id="domain-selector-wrapper">
+                            <button type="button" class="domain-selector-btn" id="domain-selector-btn"
+                                title="Click to switch or manage tenant domains">
+                                <span class="domain-icon">🌐</span>
+                                <span id="domain-badge">Domain: None</span>
+                                <span class="dropdown-chevron">▾</span>
+                            </button>
+                            <div class="domain-dropdown-menu" id="domain-dropdown-menu" style="display: none;">
+                                <div class="domain-dropdown-header">Saved Tenant Domains</div>
+                                <div class="domain-list" id="domain-dropdown-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                                <div class="domain-dropdown-divider"></div>
+                                <button type="button" class="domain-add-btn" id="btn-add-domain">+ New Domain</button>
+                            </div>
+                        </div>
+                        <button id="btn-clear-session"
+                            style="background: rgba(255, 68, 68, 0.1); color: #ff4444; border: 1px solid rgba(255, 68, 68, 0.2); padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-family: inherit;"
+                            title="Reset active domain inputs">Clear Session</button>
+                    </div>
+                </div>
+                <textarea id="global-auth-script"
+                    placeholder="Paste your 'Copy as PowerShell' request here. This will be automatically saved in your browser and used across all tabs."></textarea>
+            </div>
+
+            <!-- Tier 1: Main Domain Module Navigation -->
+            <div class="module-nav">
+                <button class="module-btn active" data-module="tickets">
+                    <span class="module-icon">🎫</span>
+                    <div class="module-info">
+                        <span class="module-title">Tickets</span>
+                        <span class="module-subtitle">Fields &amp; Templates</span>
+                    </div>
+                </button>
+                <button class="module-btn" data-module="customers">
+                    <span class="module-icon">👤</span>
+                    <div class="module-info">
+                        <span class="module-title">Customers</span>
+                        <span class="module-subtitle">Fields &amp; Management</span>
+                    </div>
+                </button>
+                <button class="module-btn" data-module="agents">
+                    <span class="module-icon">👥</span>
+                    <div class="module-info">
+                        <span class="module-title">Agents &amp; Groups</span>
+                        <span class="module-subtitle">Batch Create &amp; Assign</span>
+                    </div>
+                </button>
+                <button class="module-btn" data-module="voice">
+                    <span class="module-icon">📞</span>
+                    <div class="module-info">
+                        <span class="module-title">Call Center</span>
+                        <span class="module-subtitle">Voice Library &amp; IVR Flow</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Tier 2: Sub-Feature Navigation Bar -->
+            <div class="sub-nav-bar">
+                <div class="sub-nav-group active" id="subnav-tickets">
+                    <button class="sub-tab-btn active" data-target="tab-fetch-fields">
+                        <span class="sub-tab-dot"></span> Fetch Custom Fields
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-create-fields">
+                        <span class="sub-tab-dot"></span> Create Custom Fields
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-fields">
+                        <span class="sub-tab-dot"></span> Migrate Custom Fields
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-templates">
+                        <span class="sub-tab-dot"></span> Migrate Templates
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-create-templates">
+                        <span class="sub-tab-dot"></span> Create Ticket Templates
+                    </button>
+                </div>
+                <div class="sub-nav-group" id="subnav-customers" style="display: none;">
+                    <button class="sub-tab-btn active" data-target="tab-fetch-customer-fields">
+                        <span class="sub-tab-dot"></span> Fetch Customer Fields
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-create-customer-fields">
+                        <span class="sub-tab-dot"></span> Create Customer Fields
+                    </button>
+                </div>
+                <div class="sub-nav-group" id="subnav-agents" style="display: none;">
+                    <button class="sub-tab-btn active" data-target="tab-create-agents">
+                        <span class="sub-tab-dot"></span> Create Agents
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-groups">
+                        <span class="sub-tab-dot"></span> Create Agent Groups
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-assign">
+                        <span class="sub-tab-dot"></span> Assign Agents
+                    </button>
+                </div>
+                <div class="sub-nav-group" id="subnav-voice" style="display: none;">
+                    <button class="sub-tab-btn active" data-target="tab-voice">
+                        <span class="sub-tab-dot"></span> Voice File Library
+                    </button>
+                    <button class="sub-tab-btn" data-target="tab-ivr">
+                        <span class="sub-tab-dot"></span> IVR Flow Builder
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab: Fetch Custom Fields -->
+            <div class="tab-content active" id="tab-fetch-fields">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <button class="action-btn" id="btn-fetch-custom-fields"
+                        style="background: linear-gradient(135deg, #00b4d8, #0077b6); margin-top: 0; width: auto; padding: 10px 20px;">
+                        Fetch Current Custom Fields from Tenant
+                    </button>
+                    <div class="stats-row" id="fetch-fields-stats" style="display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                        <label for="f-fetched-json" style="margin-bottom: 0;">Fetched Fields JSON</label>
+                        <div class="quick-actions-bar" style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-tool" id="btn-copy-fetched-fields"
+                                title="Copy JSON to clipboard">📋 Copy JSON</button>
+                            <button type="button" class="btn-tool" id="btn-download-fetched-fields"
+                                title="Download custom_fields.json">💾 Download JSON</button>
+                            <button type="button" class="btn-tool" id="btn-send-to-migrate"
+                                style="color: #00ffaa; border-color: rgba(0, 255, 170, 0.4);"
+                                title="Transfer JSON to Migrate tab">➡️ Send to Migrate Tab</button>
+                        </div>
+                    </div>
+                    <textarea id="f-fetched-json"
+                        placeholder="Click 'Fetch Current Custom Fields from Tenant' above to retrieve the active tenant's custom fields..."
+                        style="height: 280px; font-family: 'JetBrains Mono', monospace;"></textarea>
+                </div>
+            </div>
+
+            <!-- Tab: Create Custom Fields (Dual Mode: Excel Upload / Table Grid) -->
+            <div class="tab-content" id="tab-create-fields">
+                <input type="file" id="file-fields-input" accept=".xlsx,.xls,.csv" style="display: none;">
+
+                <!-- Input Method Switcher (Upload vs Paste) -->
+                <div class="input-mode-switcher">
+                    <button type="button" class="mode-pill active" id="btn-mode-upload">
+                        <span>📁 Upload Excel / CSV</span>
+                    </button>
+                    <button type="button" class="mode-pill" id="btn-mode-paste">
+                        <span>📋 Quick Paste from Clipboard</span>
+                    </button>
+                </div>
+
+                <div class="field-creator-toolbar">
+                    <!-- Panel 1: Upload File Mode -->
+                    <div class="creator-mode-panel" id="panel-mode-upload">
+                        <div class="excel-drop-zone" id="excel-drop-zone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📊</span>
+                                <div class="drop-zone-text">
+                                    <span class="drop-primary">Drag &amp; drop Excel (.xlsx) / CSV file here</span>
+                                    <span class="drop-secondary">or <span class="drop-link" id="btn-browse-excel">browse
+                                            file</span> from computer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Quick Paste Mode -->
+                    <div class="creator-mode-panel" id="panel-mode-paste" style="display: none;">
+                        <div class="paste-box-wrapper">
+                            <textarea id="fields-paste-textarea" class="paste-textarea" rows="5"
+                                placeholder="Paste rows directly from Excel or clipboard (Tab or Comma separated)...&#10;Simple Format: Field Name [Tab] Type [Tab] Options&#10;Extended Format: Field Name [Tab] Type [Tab] Options [Tab] Description [Tab] Persona&#10;Examples:&#10;Customer Name&#9;text&#10;Purchase Date&#9;date&#10;Product Model&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#10;Distributor Defect&#9;text&#9;&#9;Special notes for distributor&#9;Distributor"></textarea>
+                            <div class="paste-actions-bar">
+                                <div class="paste-hints">
+                                    <span class="paste-hint-text">💡 Format:
+                                        <code>Field Name [Tab] Type [Tab] Options [Tab] Description [Tab] Persona</code> (Description &amp; Persona optional)</span>
+                                </div>
+                                <div class="paste-btns-group">
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-sample"
+                                        title="Insert sample demonstration fields">
+                                        📥 Insert Sample
+                                    </button>
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-clear"
+                                        title="Clear paste box">
+                                        🗑️ Clear
+                                    </button>
+                                    <button type="button" class="btn-parse-primary" id="btn-parse-paste"
+                                        title="Parse text and append to table">
+                                        ✨ Parse &amp; Append to Table
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="creator-actions-bar">
+                        <a href="custom_fields_template.xlsx" download="custom_fields_template.xlsx" class="btn-tool"
+                            id="btn-download-sample-excel" title="Download sample Excel template"
+                            style="text-decoration: none; display: inline-flex; align-items: center;">
+                            📥 Download Sample Excel
+                        </a>
+                        <button type="button" class="btn-tool" id="btn-toolbar-browse"
+                            title="Choose file from computer">
+                            📂 Choose File
+                        </button>
+                        <button type="button" class="btn-tool" id="btn-add-grid-row" title="Add row to table">
+                            ➕ Add Row
+                        </button>
+                        <button type="button" class="btn-tool" id="btn-clear-grid"
+                            style="color: #ff5555; border-color: rgba(255, 85, 85, 0.3);" title="Clear table rows">
+                            🗑️ Clear Table
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Role Visibility Rules Configuration Card -->
+                <div class="role-rules-card" id="role-rules-card">
+                    <div class="role-rules-header">
+                        <div class="role-rules-title">
+                            <span class="role-icon">🛡️</span>
+                            <span>Role Visibility Rules</span>
+                            <span class="badge-status badge-ready" id="badge-fields-roles-status">Roles Not Loaded</span>
+                        </div>
+                        <div class="role-rules-actions">
+                            <button type="button" class="btn-tool-secondary" id="btn-fetch-field-roles" title="Fetch tenant roles">
+                                🔄 Refresh Roles
+                            </button>
+                            <button type="button" class="btn-tool-secondary" id="btn-add-persona-rule" title="Add new persona visibility rule">
+                                ➕ Add Rule
+                            </button>
+                            <button type="button" class="btn-tool-secondary" id="btn-preset-role-rules" title="Auto-apply Distributor & Agent segregation preset">
+                                ⚡ Role Preset
+                            </button>
+                        </div>
+                    </div>
+                    <div class="role-rules-body" id="role-rules-list">
+                        <!-- Dynamic rule rows injected by JavaScript -->
+                    </div>
+                    <div class="role-rules-footer-hint">
+                        <span>💡 Set a <b>Persona</b> (e.g. <code>Distributor</code>) on fields below. Configured rules will automatically hide those fields from selected roles.</span>
+                    </div>
+                </div>
+
+                <!-- Interactive Grid Table -->
+                <div class="field-grid-wrapper">
+                    <table class="field-grid-table" id="field-grid-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 38px; text-align: center;">#</th>
+                                <th style="width: 180px;">Field Name</th>
+                                <th style="width: 110px;">Type</th>
+                                <th>Options (comma-separated for Dropdown)</th>
+                                <th style="width: 160px;">Description</th>
+                                <th style="width: 110px;">Persona</th>
+                                <th style="width: 180px;">Hidden Roles</th>
+                                <th style="width: 90px; text-align: center;">Status</th>
+                                <th style="width: 44px; text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="field-grid-tbody">
+                            <!-- Rows injected dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div class="grid-empty-state" id="grid-empty-state" style="display: none;">
+                        <span>No fields in table. Upload an Excel file or click "+ Add Row" to begin.</span>
+                    </div>
+                </div>
+
+                <button class="action-btn" id="btn-execute-create-fields" style="margin-top: 16px;">
+                    Create Custom Fields (0 Fields)
+                </button>
+            </div>
+
+            <!-- Tab: Migrate Custom Fields -->
+            <div class="tab-content" id="tab-fields">
+                <div class="form-group">
+                    <label for="f-raw">Raw Data (Tenant Fields JSON to Create)</label>
+                    <textarea id="f-raw"
+                        placeholder="Drag and drop your raw.json file here or transfer from Fetch tab..."></textarea>
+                </div>
+                <button class="action-btn" id="btn-migrate-fields">Execute Field Migration</button>
+            </div>
+
+            <div class="tab-content" id="tab-templates">
+                <div class="split-pane">
+                    <div class="form-group">
+                        <div class="form-label-row"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label for="t-auth-a" style="margin-bottom: 0;">Tenant A Save Script (Used for
+                                Payload)</label>
+                            <select class="domain-preset-select" id="select-preset-tenant-a">
+                                <option value="">Load from saved domain...</option>
+                            </select>
+                        </div>
+                        <textarea id="t-auth-a"
+                            placeholder="Drag and drop the Tenant A PowerShell script here..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-label-row"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label for="t-auth-b" style="margin-bottom: 0;">Tenant B Save Script (Target Template
+                                ID)</label>
+                            <select class="domain-preset-select" id="select-preset-tenant-b">
+                                <option value="">Load from saved domain...</option>
+                            </select>
+                        </div>
+                        <textarea id="t-auth-b"
+                            placeholder="Drag and drop the Tenant B PowerShell script here..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="t-fields">Tenant B Custom Fields</label>
+                        <textarea id="t-fields" placeholder="Drag and drop the custom_fields.json here..."></textarea>
+                    </div>
+                </div>
+                <button class="action-btn" id="btn-migrate-template">Execute Template Migration</button>
+            </div>
+
+            <!-- Tab: Create Ticket Templates -->
+            <div class="tab-content" id="tab-create-templates">
+                <div class="action-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; color: #fff;">Create Ticket Templates (Hierarchical Blocks)</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted, #a0aec0);">
+                            Paste template headers and field names. Fields are validated against your tenant in real-time.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-tool-secondary" id="btn-tpl-refresh-fields" title="Fetch live ticket fields to validate">
+                            🔄 Check Tenant Fields
+                        </button>
+                        <button type="button" class="btn-tool-secondary" id="btn-tpl-sample-data" title="Load sample template definitions">
+                            📋 Sample
+                        </button>
+                        <button type="button" class="btn-tool-secondary" id="btn-tpl-clear" title="Clear paste box">
+                            🧹 Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Banner -->
+                <div id="tpl-status-banner" style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <span id="tpl-counter-templates" style="font-weight: 600; color: var(--accent-blue, #64B5F6);">Templates: 0</span>
+                        <span id="tpl-counter-fields" style="color: #cbd5e0;">Total Fields: 0</span>
+                    </div>
+                    <div id="tpl-validation-badge" style="font-size: 0.85rem;">
+                        <span class="badge-status badge-neutral">ℹ️ Checking tenant fields...</span>
+                    </div>
+                </div>
+
+                <!-- Paste Box -->
+                <div class="form-group">
+                    <textarea id="tpl-paste-box" style="font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; min-height: 220px; line-height: 1.5;"
+                        placeholder="Template: Complaint Ticket&#10;VIN (#28101)&#9;true&#10;Car Model (field_28102)&#9;false&#10;#28103*&#10;Dealer Code&#10;&#10;Template: Maintenance Ticket&#10;Plate Number&#9;required&#10;Mileage&#9;optional&#10;Service Type"></textarea>
+                </div>
+
+                <!-- Parsed Templates Preview Cards -->
+                <div id="tpl-preview-container" style="display: none; margin-bottom: 20px;">
+                    <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; color: #e2e8f0;">Parsed Template Preview</div>
+                    <div id="tpl-preview-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"></div>
+                </div>
+
+                <!-- Missing Fields Warning Notice (Strict Guard) -->
+                <div id="tpl-strict-guard-alert" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: rgba(245, 101, 101, 0.1); border: 1px solid rgba(245, 101, 101, 0.3); border-radius: 8px; color: #feb2b2; font-size: 0.88rem;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">🛡️ Strict Guard: Unmatched Fields Detected</div>
+                    <div id="tpl-strict-guard-msg"></div>
+                    <div style="margin-top: 8px;">
+                        <button type="button" class="btn-tool-secondary" id="btn-goto-create-fields" style="background: rgba(245, 101, 101, 0.2); color: #fff; border-color: rgba(245, 101, 101, 0.4); padding: 4px 10px; font-size: 0.8rem;">
+                            👉 Go to Create Custom Fields
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Execution Button -->
+                <button class="action-btn" id="btn-execute-create-templates" style="margin-top: 8px;">
+                    Create Ticket Templates (0 Templates)
+                </button>
+            </div>
+
+            <!-- Tab: Fetch Customer Fields -->
+            <div class="tab-content" id="tab-fetch-customer-fields">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <button class="action-btn" id="btn-fetch-customer-fields"
+                        style="background: linear-gradient(135deg, #00b4d8, #0077b6); margin-top: 0; width: auto; padding: 10px 20px;">
+                        Fetch Current Customer Fields from Tenant
+                    </button>
+                    <div class="stats-row" id="fetch-customer-fields-stats" style="display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                        <label for="f-fetched-customer-json" style="margin-bottom: 0;">Fetched Customer Fields
+                            JSON</label>
+                        <div class="quick-actions-bar" style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-tool" id="btn-copy-fetched-customer-fields"
+                                title="Copy JSON to clipboard">📋 Copy JSON</button>
+                            <button type="button" class="btn-tool" id="btn-download-fetched-customer-fields"
+                                title="Download customer_fields.json">💾 Download JSON</button>
+                        </div>
+                    </div>
+                    <textarea id="f-fetched-customer-json"
+                        placeholder="Click 'Fetch Current Customer Fields from Tenant' above to retrieve the active tenant's customer fields..."
+                        style="height: 280px; font-family: 'JetBrains Mono', monospace;"></textarea>
+                </div>
+            </div>
+
+            <!-- Tab: Create Customer Fields (Dual Mode: Excel Upload / Table Grid) -->
+            <div class="tab-content" id="tab-create-customer-fields">
+                <input type="file" id="file-customer-fields-input" accept=".xlsx,.xls,.csv" style="display: none;">
+
+                <!-- Input Method Switcher (Upload vs Paste) -->
+                <div class="input-mode-switcher">
+                    <button type="button" class="mode-pill active" id="btn-mode-customer-upload">
+                        <span>📁 Upload Excel / CSV</span>
+                    </button>
+                    <button type="button" class="mode-pill" id="btn-mode-customer-paste">
+                        <span>📋 Quick Paste from Clipboard</span>
+                    </button>
+                </div>
+
+                <div class="field-creator-toolbar">
+                    <!-- Panel 1: Upload File Mode -->
+                    <div class="creator-mode-panel" id="panel-mode-customer-upload">
+                        <div class="excel-drop-zone" id="excel-customer-drop-zone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📊</span>
+                                <div class="drop-zone-text">
+                                    <span class="drop-primary">Drag &amp; drop Excel (.xlsx) / CSV file here</span>
+                                    <span class="drop-secondary">or <span class="drop-link"
+                                            id="btn-browse-customer-excel">browse file</span> from computer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Quick Paste Mode -->
+                    <div class="creator-mode-panel" id="panel-mode-customer-paste" style="display: none;">
+                        <div class="paste-box-wrapper">
+                            <textarea id="customer-fields-paste-textarea" class="paste-textarea" rows="5"
+                                placeholder="Paste rows directly from Excel or clipboard (Tab or Comma separated)...&#10;Format: Field Name [Tab] Type [Tab] Options [Tab] Description&#10;Examples:&#10;Customer Address&#9;text&#10;Birth Date&#9;date&#10;Preferred Product&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#10;VIP Code&#9;text&#9;&#9;Internal VIP identification"></textarea>
+                            <div class="paste-actions-bar">
+                                <div class="paste-hints">
+                                    <span class="paste-hint-text">💡 Format:
+                                        <code>Field Name [Tab] Type [Tab] Options [Tab] Description</code> (Description optional)</span>
+                                </div>
+                                <div class="paste-btns-group">
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-customer-sample"
+                                        title="Insert sample demonstration customer fields">
+                                        📥 Insert Sample
+                                    </button>
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-customer-clear"
+                                        title="Clear paste box">
+                                        🗑️ Clear
+                                    </button>
+                                    <button type="button" class="btn-parse-primary" id="btn-parse-customer-paste"
+                                        title="Parse text and append to table">
+                                        ✨ Parse &amp; Append to Table
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="creator-actions-bar">
+                        <a href="custom_fields_template.xlsx" download="custom_fields_template.xlsx" class="btn-tool"
+                            id="btn-download-sample-customer-excel" title="Download sample Excel template"
+                            style="text-decoration: none; display: inline-flex; align-items: center;">
+                            📥 Download Sample Excel
+                        </a>
+                        <button type="button" class="btn-tool" id="btn-toolbar-customer-browse"
+                            title="Choose file from computer">
+                            📂 Choose File
+                        </button>
+                        <button type="button" class="btn-tool" id="btn-add-customer-grid-row" title="Add row to table">
+                            ➕ Add Row
+                        </button>
+                        <button type="button" class="btn-tool" id="btn-clear-customer-grid"
+                            style="color: #ff5555; border-color: rgba(255, 85, 85, 0.3);" title="Clear table rows">
+                            🗑️ Clear Table
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive Grid Table -->
+                <div class="field-grid-wrapper">
+                    <table class="field-grid-table" id="customer-field-grid-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 38px; text-align: center;">#</th>
+                                <th style="width: 200px;">Field Name</th>
+                                <th style="width: 120px;">Type</th>
+                                <th>Options (comma-separated for Dropdown)</th>
+                                <th style="width: 180px;">Description</th>
+                                <th style="width: 95px; text-align: center;">Status</th>
+                                <th style="width: 44px; text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customer-field-grid-tbody">
+                            <!-- Rows injected dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div class="grid-empty-state" id="customer-grid-empty-state" style="display: none;">
+                        <span>No customer fields in table. Upload an Excel file or click "+ Add Row" to begin.</span>
+                    </div>
+                </div>
+
+                <button class="action-btn" id="btn-execute-create-customer-fields" style="margin-top: 16px;">
+                    Create Customer Fields (0 Fields)
+                </button>
+            </div>
+
+            <!-- Tab: Create Agents (Streamlined Batch Creation with Auto-Metadata & Batch Actions) -->
+            <div class="tab-content" id="tab-create-agents">
+                <!-- Top Configuration / Metadata Discovery Bar -->
+                <div class="agent-config-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.25rem;">👥</span>
+                            <span style="font-weight: 600; color: var(--accent-blue); font-size: 0.95rem;">Batch Agent Setup</span>
+                            <span class="badge-status badge-pending" id="badge-agent-metadata-status">Loading Roles...</span>
+                        </div>
+                        <button type="button" class="btn-tool" id="btn-refresh-agent-metadata" style="display: inline-flex; align-items: center; gap: 6px;" title="Re-fetch Roles, Groups, and Departments from active tenant">
+                            🔄 Refresh Roles &amp; Metadata
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="agent-global-profile" style="font-size: 0.82rem; margin-bottom: 4px;">Default Account Type</label>
+                            <select id="agent-global-profile" class="form-select">
+                                <option value="all" selected>All Channels / 全渠道 (all)</option>
+                                <option value="callcenter">Call Center / 呼叫中心 (callcenter)</option>
+                                <option value="im">Online IM / 在线客服 (im)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="agent-global-role" style="font-size: 0.82rem; margin-bottom: 4px;">Default Role</label>
+                            <select id="agent-global-role" class="form-select">
+                                <option value="">Loading roles...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="agent-global-password" style="font-size: 0.82rem; margin-bottom: 4px;">Initial Password</label>
+                            <input type="text" id="agent-global-password" value="Pass2026" class="form-input" placeholder="e.g. Pass2026">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Method Switcher (Paste vs Upload) -->
+                <div class="input-mode-switcher">
+                    <button type="button" class="mode-pill active" id="btn-mode-agent-paste">
+                        <span>📋 Paste Emails</span>
+                    </button>
+                    <button type="button" class="mode-pill" id="btn-mode-agent-upload">
+                        <span>📁 Upload Excel / CSV</span>
+                    </button>
+                </div>
+
+                <div class="field-creator-toolbar">
+                    <!-- Panel 1: Quick Paste -->
+                    <div class="creator-mode-panel" id="panel-mode-agent-paste">
+                        <div class="paste-box-wrapper">
+                            <textarea id="agents-paste-textarea" class="paste-textarea" rows="4" placeholder="Enter agent email addresses (and optional nick name), one per line...&#10;Examples:&#10;agent1@example.com, Agent One&#10;agent2@example.com&#9;Agent 2&#10;agent3@example.com"></textarea>
+                            <div class="paste-actions-bar">
+                                <div class="paste-hints">
+                                    <span class="paste-hint-text">💡 Format: <code>email [Tab or Comma] optional_nickname</code>. Defaults above will be assigned automatically.</span>
+                                </div>
+                                <div class="paste-btns-group">
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-agent-sample" title="Insert sample emails">
+                                        📥 Insert Sample
+                                    </button>
+                                    <button type="button" class="btn-tool-secondary" id="btn-paste-agent-clear" title="Clear paste box">
+                                        🗑️ Clear
+                                    </button>
+                                    <button type="button" class="btn-parse-primary" id="btn-load-agent-list" title="Parse and load emails to overview list">
+                                        ⬇️ Load to Overview List
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: File Upload -->
+                    <div class="creator-mode-panel" id="panel-mode-agent-upload" style="display: none;">
+                        <input type="file" id="file-agents-input" accept=".xlsx,.xls,.csv" style="display: none;">
+                        <div class="excel-drop-zone" id="excel-agent-drop-zone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">👥</span>
+                                <div class="drop-zone-text">
+                                    <span class="drop-primary">Drag &amp; drop Excel (.xlsx) / CSV file here</span>
+                                    <span class="drop-secondary">or <span class="drop-link" id="btn-browse-agent-excel">browse file</span> from computer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview Table with Batch Actions Bar -->
+                <div class="agent-overview-container" style="margin-top: 14px;">
+                    <div class="agent-batch-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-bottom: none; border-radius: 10px 10px 0 0; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 0; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); user-select: none;">
+                                <input type="checkbox" id="agent-select-all" style="cursor: pointer; width: 16px; height: 16px;"> Select All (<span id="agent-selected-count">0</span>)
+                            </label>
+                            <span class="badge-status badge-pending" id="agent-total-badge">0 Agents</span>
+                        </div>
+
+                        <!-- Batch Actions -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Batch Update Selected:</span>
+                            <select id="agent-batch-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 0.8rem; height: 32px;">
+                                <option value="all">Type: All Channels (all)</option>
+                                <option value="callcenter">Type: Call Center (callcenter)</option>
+                                <option value="im">Type: Online IM (im)</option>
+                            </select>
+                            <button type="button" class="btn-tool" id="btn-apply-batch-type" style="height: 32px; padding: 0 10px;">Apply Type</button>
+
+                            <select id="agent-batch-role" class="form-select" style="width: auto; padding: 4px 8px; font-size: 0.8rem; height: 32px;">
+                                <option value="">Select Role...</option>
+                            </select>
+                            <button type="button" class="btn-tool" id="btn-apply-batch-role" style="height: 32px; padding: 0 10px;">Apply Role</button>
+
+                            <button type="button" class="btn-tool" id="btn-delete-selected-agents" style="color: #ff5555; border-color: rgba(255, 85, 85, 0.3); height: 32px; padding: 0 10px;">🗑️ Delete</button>
+                        </div>
+                    </div>
+
+                    <div class="field-grid-wrapper" style="margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0;">
+                        <table class="field-grid-table" id="agent-grid-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 44px; text-align: center;"></th>
+                                    <th style="width: 44px; text-align: center;">#</th>
+                                    <th style="width: 240px;">Agent Email</th>
+                                    <th style="width: 170px;">Nick Name (Optional)</th>
+                                    <th style="width: 180px;">Account Type</th>
+                                    <th style="width: 180px;">Role</th>
+                                    <th style="width: 100px; text-align: center;">Status</th>
+                                    <th style="width: 50px; text-align: center;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agent-grid-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                        <div class="grid-empty-state" id="agent-grid-empty-state" style="display: none;">
+                            <span>No agents in overview list. Paste emails above and click "Load to Overview List".</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="action-btn" id="btn-execute-create-agents" style="margin-top: 16px;">
+                    Execute Agent Creation (0 Agents)
+                </button>
+            </div>
+
+            <div class="tab-content" id="tab-groups">
+                <div class="form-group">
+                    <label for="g-names">List of Group Names</label>
+                    <textarea id="g-names" placeholder="Enter group names here, one per line..."></textarea>
+                </div>
+                <button class="action-btn" id="btn-create-groups">Execute Group Creation</button>
+            </div>
+
+            <div class="tab-content" id="tab-assign">
+                <button class="action-btn" id="btn-fetch-both"
+                    style="margin-bottom: 16px; background: linear-gradient(135deg, #00b4d8, #0077b6);">Fetch Groups
+                    &amp; Agents from Tenant</button>
+                <div class="split-pane">
+                    <div class="form-group">
+                        <label for="a-groups-json">Groups JSON</label>
+                        <textarea id="a-groups-json" placeholder="Paste Groups JSON export here..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="a-agents-json">Agents JSON</label>
+                        <textarea id="a-agents-json" placeholder="Paste Agents JSON export here..."></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="a-mapping">CSV Mapping (Agent Email, Group1, Group2...)</label>
+                    <textarea id="a-mapping" placeholder="agent1@example.com, Tier 1 Customer Service, Tier 2 Technical Support"></textarea>
+                </div>
+                <button class="action-btn" id="btn-assign-agents">Execute Agent Assignment</button>
+            </div>
+
+            <div class="tab-content" id="tab-voice">
+                <!-- Voice Mode Switcher -->
+                <div class="input-mode-switcher" style="margin-bottom: 16px;">
+                    <button type="button" class="mode-pill active" id="btn-voice-mode-upload">
+                        <span>📁 Upload Audio Files</span>
+                    </button>
+                    <button type="button" class="mode-pill" id="btn-voice-mode-tts">
+                        <span>🗣️ Batch Text-to-Speech (TTS)</span>
+                    </button>
+                </div>
+
+                <!-- Mode 1: Upload Audio Files (Directory Scanner) -->
+                <div id="panel-voice-mode-upload">
+                    <div class="voice-config-card">
+                        <div class="voice-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label for="v-dir">Audio Files Directory Path</label>
+                                <div class="input-with-action">
+                                    <input type="text" id="v-dir" placeholder="e.g. D:\Customers\Audios" class="form-input">
+                                    <button class="sub-action-btn" id="btn-scan-voice">Scan Audio Files</button>
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex: 1.2;">
+                                <label for="v-naming-mode">Voice Naming Rule</label>
+                                <select id="v-naming-mode" class="form-select">
+                                    <option value="folder_suffix">Folder Suffix ({file}_{folder})</option>
+                                    <option value="exact">Exact Filename ({file})</option>
+                                    <option value="prefix">Add Prefix ({prefix}{file})</option>
+                                    <option value="suffix">Add Suffix ({file}{suffix})</option>
+                                    <option value="custom">Custom Pattern</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="voice-row" id="v-naming-custom-row" style="margin-top: 12px; display: flex; gap: 16px;">
+                            <div class="form-group" style="flex: 1;" id="v-prefix-group">
+                                <label for="v-prefix">Prefix (Optional)</label>
+                                <input type="text" id="v-prefix" placeholder="e.g. CALL_" class="form-input">
+                            </div>
+                            <div class="form-group" style="flex: 1;" id="v-suffix-group">
+                                <label for="v-suffix">Suffix (Optional)</label>
+                                <input type="text" id="v-suffix" placeholder="e.g. _PROD" class="form-input">
+                            </div>
+                            <div class="form-group" style="flex: 2; display: none;" id="v-pattern-group">
+                                <label for="v-pattern">Custom Pattern</label>
+                                <input type="text" id="v-pattern" placeholder="{prefix}{file}_{folder}" class="form-input"
+                                    value="{prefix}{file}_{folder}">
+                            </div>
+                        </div>
+
+                        <details class="voice-details" style="margin-top: 12px;">
+                            <summary
+                                style="cursor: pointer; color: var(--accent-hover); font-size: 0.88rem; user-select: none;">
+                                Advanced Browser &amp; Connection Settings
+                            </summary>
+                            <div class="voice-row" style="margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                <div class="form-group" style="flex: 1.5; min-width: 220px;">
+                                    <label for="v-target-url">Target Voice Library URL (Overrides domain)</label>
+                                    <input type="text" id="v-target-url"
+                                        placeholder="https://<tenant-domain>/entry/manage/callcenter/voice-list"
+                                        class="form-input">
+                                </div>
+                                <div class="form-group" style="flex: 0.8; min-width: 120px;">
+                                    <label for="v-cdp-port">Chrome CDP Port</label>
+                                    <input type="number" id="v-cdp-port" placeholder="9225" value="9225" class="form-input">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 180px;">
+                                    <label for="v-username">Auto-login Email (Optional)</label>
+                                    <input type="email" id="v-username" placeholder="agent@example.com" class="form-input">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 180px;">
+                                    <label for="v-password">Auto-login Password (Optional)</label>
+                                    <input type="password" id="v-password" placeholder="••••••••" class="form-input">
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="voice-preview-container">
+                        <div class="voice-preview-header">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-weight: 600; font-size: 0.95rem;">Audio Files Preview</span>
+                                <span id="v-selection-count" class="badge-count">0 files found</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button id="btn-recalculate-names" class="mini-btn">Recalculate Names</button>
+                                <button id="btn-select-all" class="mini-btn">Select All</button>
+                                <button id="btn-deselect-all" class="mini-btn">Deselect All</button>
+                            </div>
+                        </div>
+                        <div class="voice-table-wrap">
+                            <table class="voice-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox"
+                                                id="th-check-all" checked></th>
+                                        <th>File Name</th>
+                                        <th>Folder</th>
+                                        <th style="width: 75px;">Size</th>
+                                        <th>Target Voice Name (Editable)</th>
+                                        <th style="width: 110px; text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="voice-table-body">
+                                    <tr>
+                                        <td colspan="6"
+                                            style="text-align: center; color: var(--text-secondary); padding: 24px;">
+                                            Enter an audio directory path and click "Scan Audio Files" to preview.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 5px;">
+                        <button class="action-btn" id="btn-upload-voice" style="flex: 3;">Execute Voice Upload</button>
+                        <button class="action-btn" id="btn-retry-failed"
+                            style="flex: 1; display: none; background: linear-gradient(135deg, #f59e0b, #ef4444);">Retry
+                            Failed Items</button>
+                    </div>
+                </div>
+
+                <!-- Mode 2: Batch Text-to-Speech (TTS) -->
+                <div id="panel-voice-mode-tts" style="display: none;">
+                    <div class="voice-config-card" style="margin-bottom: 16px;">
+                        <div class="voice-row" style="align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                <label for="v-tts-timbre" style="margin-bottom: 0; color: var(--accent-cyan); font-weight: 600;">Default Timbre (音色):</label>
+                                <input type="text" id="v-tts-timbre" value="小夏" class="form-input" style="width: 130px;" placeholder="e.g. 小夏">
+                                <span style="font-size: 0.82rem; color: var(--text-secondary);">Applied when 3rd column is omitted</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="v-tts-count-badge" class="badge-count" style="background: rgba(0, 212, 255, 0.15); color: #00d4ff; border-color: rgba(0, 212, 255, 0.3);">0 Prompts Detected</span>
+                                <button type="button" class="btn-tool" id="btn-paste-tts-sample" title="Paste sample TSV">📋 Paste Sample</button>
+                                <button type="button" class="btn-tool" id="btn-clear-tts" title="Clear input">🧹 Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label for="v-tts-text" style="margin-bottom: 0;">Voice Prompts TSV / CSV</label>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Columns: <code>Voice Name [TAB] Voice Content [[TAB] Timbre]</code></span>
+                        </div>
+                        <textarea id="v-tts-text" style="height: 280px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; line-height: 1.5;" placeholder="welcome_prompt	Welcome to customer service. How may I assist you today?	小夏
+queue_wait	All our customer representatives are currently busy. Please hold the line.	小夏
+transfer_agent	Transferring your call to a customer representative. Please wait.	小夏
+afterhours_notice	Our offices are currently closed. Please call back during business hours.	小夏"></textarea>
+                    </div>
+
+                    <div class="voice-config-card" style="margin-top: 12px;">
+                        <div class="voice-row" style="align-items: flex-end;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="v-tts-cdp-port">Chrome CDP Port</label>
+                                <input type="number" id="v-tts-cdp-port" placeholder="9225" value="9225" class="form-input">
+                            </div>
+                            <div class="form-group" style="flex: 2;">
+                                <label for="v-tts-cdp-url">Direct WebSocket URL (Optional)</label>
+                                <input type="text" id="v-tts-cdp-url" placeholder="e.g. ws://127.0.0.1:9225/devtools/browser/..." class="form-input">
+                            </div>
+                            <div style="flex: 2; display: flex; gap: 8px;">
+                                <button class="action-btn" id="btn-execute-tts" style="flex: 2; height: 42px; margin-top: 0;">Execute Batch TTS Creation</button>
+                                <button class="action-btn" id="btn-stop-tts" style="flex: 1; height: 42px; margin-top: 0; background: linear-gradient(135deg, #ef4444, #b91c1c); display: none;">🛑 Stop</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IVR Flow Builder Tab -->
+            <div class="tab-content" id="tab-ivr">
+                <div class="voice-config-card">
+                    <div class="voice-row" style="align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                            <label style="margin-bottom: 0; white-space: nowrap; color: var(--accent-blue);">Load
+                                Template:</label>
+                            <select id="ivr-template-select" class="form-select" style="max-width: 380px;">
+                                <option value="multilang_multicanvas">🌟 Multi-Language Separated Canvases (Root +
+                                    Arabic + English)</option>
+                                <option value="multilang">Standard Multi-Language Menu IVR (Single Canvas)</option>
+                                <option value="afterhours">After-Hours &amp; RSA Routing IVR</option>
+                                <option value="departments">Sales &amp; Service Branching IVR</option>
+                                <option value="blank">Blank Minimal Flow</option>
+                            </select>
+                            <button id="btn-load-ivr-template" class="mini-btn">Load</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="ivr-canvas-count" class="badge-count"
+                                style="display: none; background: rgba(0, 212, 255, 0.15); color: #00d4ff; border-color: rgba(0, 212, 255, 0.3);">1
+                                Canvas</span>
+                            <span id="ivr-valid-badge" class="badge-count"
+                                style="background: rgba(0,255,170,0.1); color: #00ffaa; border-color: rgba(0,255,170,0.2);">Valid
+                                Schema</span>
+                            <span id="ivr-node-count" class="badge-count">0 Nodes</span>
+                            <span id="ivr-route-count" class="badge-count">0 Routes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label for="ivr-yaml-input">IVR Workflow Definition (YAML / JSON)</label>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Drag &amp; drop .yaml / .json
+                            file directly into editor</span>
+                    </div>
+                    <textarea id="ivr-yaml-input"
+                        style="height: 280px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; line-height: 1.5;"
+                        placeholder="Paste your IVR YAML workflow or drag a file here..."></textarea>
+                </div>
+
+                <div class="voice-config-card">
+                    <div class="voice-row" style="align-items: flex-end;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="ivr-cdp-port">Chrome CDP Port</label>
+                            <input type="number" id="ivr-cdp-port" placeholder="9225" value="9225" class="form-input">
+                        </div>
+                        <div class="form-group" style="flex: 2;">
+                            <label for="ivr-cdp-url">Direct WebSocket URL (Optional)</label>
+                            <input type="text" id="ivr-cdp-url"
+                                placeholder="e.g. ws://127.0.0.1:9225/devtools/browser/..." class="form-input">
+                        </div>
+                        <div style="flex: 2; display: flex; gap: 8px;">
+                            <button class="sub-action-btn" id="btn-validate-ivr" style="flex: 1; height: 42px;">Validate
+                                Flow</button>
+                            <button class="action-btn" id="btn-build-ivr"
+                                style="flex: 1.5; height: 42px; margin-top: 0;">Build on Canvas</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="console">
+                <div class="console-header">
+                    <span>Terminal Output</span>
+                    <button id="btn-clear-console">Clear</button>
+                </div>
+                <div class="console-body" id="console-output">
+                    <div class="log-entry system">System ready. Waiting for input...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Pair IVR Canvases with Chrome Tabs -->
+    <div id="modal-pair-ivr-tabs" class="modal-overlay" style="display: none;">
+        <div class="modal-dialog ivr-pair-modal-dialog">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.3rem;">🌐</span>
+                    <h3 style="margin: 0; font-size: 1.15rem; color: var(--accent-cyan);">Pair IVR Canvases with Chrome
+                        Tabs</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 12px;">
+                    <button type="button" class="mini-btn" id="btn-refresh-pair-tabs"
+                        title="Re-scan open Chrome tabs">🔄 Refresh Tabs</button>
+                </div>
+                <button type="button" class="btn-modal-close" id="btn-close-pair-modal">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 18px 20px;">
+                <p
+                    style="margin-top: 0; margin-bottom: 14px; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                    The system detected a <strong>Multi-Canvas IVR Workflow</strong>. Please match each canvas section
+                    to the open Google Chrome tab where it will be generated:
+                </p>
+
+                <div id="ivr-tab-pairing-list"
+                    style="display: flex; flex-direction: column; gap: 12px; max-height: 340px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Dynamically populated pairing rows -->
+                </div>
+
+                <div id="ivr-pair-tabs-warning"
+                    style="margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); color: #ffaa00; font-size: 0.85rem; display: none;">
+                    ⚠️ <strong>Tip:</strong> Ensure you have opened and loaded the IVR Canvas editor on each tab before
+                    beginning.
+                </div>
+
+                <div id="ivr-pair-duplicate-warning"
+                    style="margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: rgba(255, 68, 68, 0.15); border: 1px solid rgba(255, 68, 68, 0.35); color: #ff5555; font-size: 0.85rem; display: none;">
+                    ⚠️ <strong>Duplicate Tab Selected:</strong> Multiple canvases are assigned to the same Chrome tab.
+                    Please assign each canvas to a distinct tab.
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 14px 20px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+                <button type="button" class="btn-tool" id="btn-cancel-pair-modal"
+                    style="height: 38px; padding: 0 16px;">Cancel</button>
+                <button type="button" class="action-btn" id="btn-confirm-pair-build"
+                    style="height: 38px; padding: 0 20px; margin-top: 0; width: auto; font-size: 0.9rem;">
+                    🚀 Start Multi-Canvas Build
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,39 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# PyInstaller & Build artifacts
+build/
+dist/
+*.spec
+*.manifest
+*.exe
+Converter/
+
+# Environments & Secrets
+.env
+.env.*
+*.env
+credentials.json
+*auth_script*
+*scratch_auth*
+
+# Temporary files & logs
+*.log
+*.tmp
+*.bak
+temp/
+scratch/
+test_output_*.xlsx
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini

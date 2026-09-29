@@ -233,6 +233,56 @@ class TestFieldsModule(unittest.TestCase):
         self.assertEqual(fields4[0]["description"], "Ticket urgency")
         self.assertEqual(fields4[0]["options"], ["High", "Low"])
 
+    def test_create_custom_fields_stream_multiline(self):
+        auth_data = {"base_url": "https://test.desk-platform.com"}
+        fields_to_create = [
+            {
+                "title": "Incident Details",
+                "type": "multiline",
+                "placeholder": "Enter detailed situation",
+                "description": "Used for escalation notes"
+            }
+        ]
+        calls = []
+        def mock_execute(url, method, payload, auth):
+            calls.append({"url": url, "method": method, "payload": payload})
+            return {"status": 200, "data": {}}
+
+        with patch("core.fields.execute_request", side_effect=mock_execute), patch("time.sleep", return_value=None):
+            stream = core.fields.create_custom_fields_stream(auth_data, fields_to_create, field_owner="Ticket")
+            events = [json.loads(line) for line in stream]
+            self.assertEqual(len(calls), 1)
+            self.assertIn("/cs/ts/api/text_fields", calls[0]["url"])
+            body = calls[0]["payload"]["text_field"]
+            self.assertEqual(body["title"], "Incident Details")
+            self.assertEqual(body["content_type"], "area_text")
+            self.assertEqual(body["init_height"], 2)
+            self.assertEqual(body["placeholder"], "Enter detailed situation")
+            self.assertEqual(body["comment"], "Used for escalation notes")
+            self.assertEqual(body["agent_permission"], 2)
+            self.assertEqual(body["customer_permission"], 2)
+
+    def test_parse_fields_file_with_placeholder_and_multiline(self):
+        # 6-column TSV: Title \t Type \t Options \t Placeholder \t Description \t Persona
+        tsv_6col = "Incident Summary\tmultiline\t\tType here...\tDetailed crash log\tAgent\n".encode('utf-8')
+        success, fields, msg = core.fields.parse_fields_file(tsv_6col, "test.tsv")
+        self.assertTrue(success)
+        self.assertEqual(len(fields), 1)
+        self.assertEqual(fields[0]["title"], "Incident Summary")
+        self.assertEqual(fields[0]["type"], "multiline")
+        self.assertEqual(fields[0]["placeholder"], "Type here...")
+        self.assertEqual(fields[0]["description"], "Detailed crash log")
+        self.assertEqual(fields[0]["persona"], "Agent")
+
+        # Header-based CSV with placeholder
+        csv_header = "Field Name,Type,Placeholder,Description,Persona\nBug Details,textarea,Describe steps,Reproduction steps,All\n".encode('utf-8')
+        success2, fields2, _ = core.fields.parse_fields_file(csv_header, "test.csv")
+        self.assertTrue(success2)
+        self.assertEqual(fields2[0]["title"], "Bug Details")
+        self.assertEqual(fields2[0]["type"], "multiline")
+        self.assertEqual(fields2[0]["placeholder"], "Describe steps")
+        self.assertEqual(fields2[0]["description"], "Reproduction steps")
+
 if __name__ == '__main__':
     unittest.main()
 

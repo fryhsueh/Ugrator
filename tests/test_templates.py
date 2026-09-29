@@ -218,5 +218,161 @@ Description\trequired
             self.assertEqual(created_fields[0]["name"], "field_202")
             self.assertTrue(created_fields[0]["is_required"])
 
+    def test_fetch_live_templates(self):
+        from core.templates import fetch_live_templates
+
+        # Missing base url
+        succ, tpls, msg = fetch_live_templates({"base_url": ""})
+        self.assertFalse(succ)
+        self.assertIn("Missing base URL", msg)
+
+        # Successful fetch
+        mock_resp = {
+            "status": 200,
+            "data": {
+                "ticket_templates": [
+                    {"id": 101, "name": "Template A", "fields": []},
+                    {"id": 102, "name": "Template B", "fields": []}
+                ]
+            }
+        }
+        with patch("core.templates.execute_request", return_value=mock_resp):
+            succ, tpls, msg = fetch_live_templates({"base_url": "https://tenant.desk-platform.com"})
+            self.assertTrue(succ)
+            self.assertEqual(len(tpls), 2)
+            self.assertEqual(tpls[0]["name"], "Template A")
+
+    def test_convert_templates_to_tsv(self):
+        from core.templates import convert_templates_to_tsv
+
+        tpls = [
+            {
+                "id": 1001,
+                "name": "Vehicle Service",
+                "fields": [
+                    {"title": "VIN", "required": True},
+                    {"title": "Mileage", "is_required": False}
+                ]
+            },
+            {
+                "id": 1002,
+                "name": "Quick Ticket",
+                "fields": [
+                    {"name": "Summary", "required": True}
+                ]
+            }
+        ]
+        tsv = convert_templates_to_tsv(tpls)
+        self.assertIn("Template: Vehicle Service (#1001)", tsv)
+        self.assertIn("VIN\ttrue", tsv)
+        self.assertIn("Mileage\tfalse", tsv)
+        self.assertIn("Template: Quick Ticket (#1002)", tsv)
+        self.assertIn("Summary\ttrue", tsv)
+
+    def test_update_ticket_templates_stream_by_id_and_name(self):
+        import json
+        from core.templates import update_ticket_templates_stream
+
+        auth_data = {"base_url": "https://tenant.desk-platform.com", "cookies": {}, "x_csrf_token": "token"}
+        templates_input = [
+            {
+                "name": "Complaint (#1001)",
+                "fields": [
+                    {"title": "VIN", "target_id": "202", "required": True}
+                ]
+            },
+            {
+                "name": "Service Order",
+                "fields": [
+                    {"title": "Mileage", "target_id": "303", "required": False}
+                ]
+            }
+        ]
+        live_templates = [
+            {"id": 1001, "name": "Complaint", "fields": [], "description": "Desc 1"},
+            {"id": 1002, "name": "Service Order", "fields": [], "description": "Desc 2"}
+        ]
+        tenant_fields = {
+            "ticketFields": [
+                {"title": "VIN", "id": 202, "field_id": 202, "name": "field_202"},
+                {"title": "Mileage", "id": 303, "field_id": 303, "name": "field_303"}
+            ]
+        }
+
+        captured_requests = []
+        def mock_execute(url, method, payload, auth):
+            captured_requests.append({"url": url, "method": method, "payload": payload})
+            return {"status": 200, "data": {"code": 1000}}
+
+        with patch("core.templates.fetch_live_templates", return_value=(True, live_templates, "OK")), \
+             patch("core.templates.execute_request", side_effect=mock_execute), \
+             patch("time.sleep", return_value=None):
+            chunks = list(update_ticket_templates_stream(auth_data, templates_input, tenant_fields_data=tenant_fields))
+            msgs = [json.loads(c) for c in chunks]
+            statuses = [m["status"] for m in msgs]
+            self.assertIn("progress", statuses)
+            self.assertIn("done", statuses)
+            done_msg = [m for m in msgs if m["status"] == "done"][0]
+            self.assertEqual(done_msg["data"]["success"], 2)
+
+            # Check PUT requests
+            self.assertEqual(len(captured_requests), 2)
+            self.assertEqual(captured_requests[0]["method"], "PUT")
+            self.assertIn("/cs/ts/api/ticket_templates/1001", captured_requests[0]["url"])
+            self.assertEqual(captured_requests[1]["method"], "PUT")
+            self.assertIn("/cs/ts/api/ticket_templates/1002", captured_requests[1]["url"])
+
+            # Check full overwrite payload fields
+            put_fields_1 = captured_requests[0]["payload"]["ticket_template"]["fields"]
+            self.assertEqual(len(put_fields_1), 1)
+            self.assertEqual(put_fields_1[0]["field_id"], 202)
+            self.assertTrue(put_fields_1[0]["is_required"])
+
+    def test_update_ticket_templates_stream_strict_guard_blocked(self):
+        import json
+        from core.templates import update_ticket_templates_stream
+
+        auth_data = {"base_url": "https://tenant.desk-platform.com"}
+        templates_input = [
+            {
+                "name": "Template A (#1001)",
+                "fields": [
+                    {"title": "NonExistentField", "required": True}
+                ]
+            }
+        ]
+        live_templates = [{"id": 1001, "name": "Template A", "fields": []}]
+        tenant_fields = {"ticketFields": []}
+
+        with patch("core.templates.fetch_live_templates", return_value=(True, live_templates, "OK")):
+            chunks = list(update_ticket_templates_stream(auth_data, templates_input, tenant_fields_data=tenant_fields))
+            msgs = [json.loads(c) for c in chunks]
+            self.assertEqual(msgs[-1]["status"], "error")
+            self.assertIn("Strict Guard Failed", msgs[-1]["message"])
+
+    def test_update_ticket_templates_stream_not_found(self):
+        import json
+        from core.templates import update_ticket_templates_stream
+
+        auth_data = {"base_url": "https://tenant.desk-platform.com"}
+        templates_input = [
+            {
+                "name": "Unknown Template (#9999)",
+                "fields": [
+                    {"title": "VIN", "target_id": "101", "required": True}
+                ]
+            }
+        ]
+        live_templates = [{"id": 1001, "name": "Existing Template", "fields": []}]
+        tenant_fields = {"ticketFields": [{"id": 101, "title": "VIN"}]}
+
+        with patch("core.templates.fetch_live_templates", return_value=(True, live_templates, "OK")):
+            chunks = list(update_ticket_templates_stream(auth_data, templates_input, tenant_fields_data=tenant_fields))
+            msgs = [json.loads(c) for c in chunks]
+            errs = [m for m in msgs if m["status"] == "error"]
+            self.assertTrue(any("was not found in tenant" in m["message"] for m in errs))
+            done_msg = [m for m in msgs if m["status"] == "done"][0]
+            self.assertEqual(done_msg["data"]["failed"], 1)
+
 if __name__ == '__main__':
     unittest.main()

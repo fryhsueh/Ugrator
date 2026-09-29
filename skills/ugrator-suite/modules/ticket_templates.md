@@ -1,7 +1,16 @@
-# Module 7: Ticket Templates Creation Specification
+# Module 7: Ticket Templates Creation & Update Specification
 
 ## Web UI Location
 **Tickets** > **Create Ticket Templates**
+
+---
+
+## Capabilities & Workflows
+
+Ugrator supports three primary operations for Ticket Templates:
+1. **Batch Template Creation**: Creates brand new templates via `POST /cs/ts/api/ticket_templates`.
+2. **Live Templates Fetching**: Pulls all existing live templates from the tenant (`GET /cs/ts/api/ticket_templates`) via the **📋 Fetch & Copy Live Templates (TSV)** button, formatting them into editable TSV and copying directly to your clipboard.
+3. **Batch Template Update (Full Overwrite)**: Modifies existing templates via `PUT /cs/ts/api/ticket_templates/{id}` via the **🔄 Update Existing Templates** button.
 
 ---
 
@@ -12,16 +21,17 @@
 
 ### Structure & Syntax
 ```tsv
-Template: <Template Name>
+Template: <Template Name> (#<Optional Template ID>)
 <Field Identifier 1>	<Required Flag>
 <Field Identifier 2>	<Required Flag>
 ...
 
-Template: <Next Template Name>
+Template: <Next Template Name> (#<Optional Template ID>)
 <Field Identifier 3>	<Required Flag>
 ```
 
 ### Accepted Header Formats
+- `Template: <Name> (#<ID>)` (e.g. `Template: Complaint Ticket (#1024)`)
 - `Template: <Name>` (e.g. `Template: Complaint Ticket`)
 - `Ticket Template: <Name>`
 - `模板：<名称>` or `模板: <名称>`
@@ -68,16 +78,31 @@ In the platform, multiple custom fields may share identical titles (e.g., duplic
 1. **Pre-flight Integrity Check**:
    - The Migrator cross-references every field identifier in the pasted block against the tenant's live ticket fields (fetched from `/cs/ts/api/ticket_fields`).
 2. **Strict Block on Missing Fields**:
-   - If **any** referenced field or ID does not exist in the tenant, template creation is **strictly blocked**.
+   - If **any** referenced field or ID does not exist in the tenant, both template creation and update are **strictly blocked**.
    - The UI displays an alert specifying which template is missing which fields.
-   - You must first create the missing fields in **Tickets** > **Create Custom Fields** before creating the template.
+   - You must first create the missing fields in **Tickets** > **Create Custom Fields** before proceeding.
+
+---
+
+## Template Update Matching & Strategy
+
+When updating existing templates (**🔄 Update Existing Templates**):
+1. **Target ID Resolution**:
+   - The Migrator inspects the header for an embedded `#<ID>` (e.g. `Template: Vehicle Complaint (#1001)`).
+   - If no `#<ID>` is found, it matches against live tenant templates by exact case-insensitive name.
+   - If the template cannot be located in the tenant, it is reported as an error (use "Create Ticket Templates" for new templates).
+2. **Full Overwrite Strategy**:
+   - The template's active fields list is completely replaced by the exact mapped fields defined in the TSV block.
+   - Existing template attributes (scope, permissions, rules, default status) are safely preserved.
+3. **Rate Limiting**:
+   - Sequential requests enforce a 2-second delay between templates to maintain stability.
 
 ---
 
 ## Demonstration Output
 
 ```tsv
-Template: Vehicle Complaint Ticket
+Template: Vehicle Complaint Ticket (#1001)
 VIN (#28101)	true
 Car Model (field_28102)	false
 Dealer Code*
@@ -85,7 +110,7 @@ Dealer Code*
 Purchase Date
 Complaint Description	true
 
-Template: Periodic Maintenance Ticket
+Template: Periodic Maintenance Ticket (#1002)
 Plate Number	required
 Current Mileage	true
 Service Advisor	false

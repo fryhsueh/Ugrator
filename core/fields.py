@@ -253,6 +253,7 @@ def create_custom_fields_stream(auth_data, fields_list, field_owner="Ticket", te
         raw_type = (field_item.get('type') or 'text').lower().strip() if isinstance(field_item, dict) else 'text'
         options = field_item.get('options', []) if isinstance(field_item, dict) else []
         description = str(field_item.get('description') or field_item.get('comment') or '').strip() if isinstance(field_item, dict) else ''
+        placeholder = str(field_item.get('placeholder') or '').strip() if isinstance(field_item, dict) else ''
         invisible_role_ids = field_item.get('invisible_role_ids', []) if isinstance(field_item, dict) else []
 
         if raw_type in ['drop_list', 'droplist', 'select']:
@@ -269,10 +270,26 @@ def create_custom_fields_stream(auth_data, fields_list, field_owner="Ticket", te
             api_endpoint = f"{base_url}/cs/ts/api/select_fields"
             resolved_type = 'drop_list'
             default_field_type_str = "SelectField"
+        elif raw_type in ['multiline', 'area_text', 'textarea', '多行文本', '多行']:
+            payload = copy.deepcopy(textTemplateData)
+            payload['text_field']['title'] = title
+            payload['text_field']['comment'] = description
+            payload['text_field']['placeholder'] = placeholder
+            payload['text_field']['field_owner'] = owner
+            payload['text_field']['content_type'] = 'area_text'
+            payload['text_field']['init_height'] = 2
+            payload['text_field']['agent_permission'] = 2
+            payload['text_field']['customer_permission'] = 2
+            if owner == "Customer":
+                payload['text_field']['is_encrypt'] = False
+            api_endpoint = f"{base_url}/cs/ts/api/text_fields"
+            resolved_type = 'multiline'
+            default_field_type_str = "TextField"
         elif raw_type == 'date':
             payload = copy.deepcopy(textTemplateData)
             payload['text_field']['title'] = title
             payload['text_field']['comment'] = description
+            payload['text_field']['placeholder'] = placeholder
             payload['text_field']['field_owner'] = owner
             payload['text_field']['content_type'] = 'date'
             if owner == "Customer":
@@ -286,6 +303,7 @@ def create_custom_fields_stream(auth_data, fields_list, field_owner="Ticket", te
             payload = copy.deepcopy(textTemplateData)
             payload['text_field']['title'] = title
             payload['text_field']['comment'] = description
+            payload['text_field']['placeholder'] = placeholder
             payload['text_field']['field_owner'] = owner
             payload['text_field']['content_type'] = 'text'
             if owner == "Customer":
@@ -426,6 +444,7 @@ def parse_fields_file(file_content_bytes, filename=""):
         has_header = any(h in first_val for h in ['字段', 'field', 'name', 'title'])
         persona_col_idx = None
         desc_col_idx = None
+        placeholder_col_idx = None
         has_opt_headers = False
 
         if has_header:
@@ -433,6 +452,8 @@ def parse_fields_file(file_content_bytes, filename=""):
             for c_idx, col_name in enumerate(header_row):
                 if any(p in col_name for p in ['persona', 'role', '角色', '适用']):
                     persona_col_idx = c_idx
+                elif any(p in col_name for p in ['placeholder', 'guide', 'hint', '提示', '引导']):
+                    placeholder_col_idx = c_idx
                 elif any(d in col_name for d in ['desc', 'comment', '说明', '描述', '备注']):
                     desc_col_idx = c_idx
                 elif any(o in col_name for o in ['opt', 'option', '选项']):
@@ -452,7 +473,9 @@ def parse_fields_file(file_content_bytes, filename=""):
                 continue
 
             val1 = str(row[1]).strip().lower() if len(row) > 1 and not pd.isna(row[1]) else 'text'
-            if any(k in val1 for k in ['drop', 'select', '下拉']):
+            if any(k in val1 for k in ['multi', 'area', 'textarea', '多行']):
+                ftype = 'multiline'
+            elif any(k in val1 for k in ['drop', 'select', '下拉']):
                 ftype = 'drop_list'
             elif any(k in val1 for k in ['date', '日期']):
                 ftype = 'date'
@@ -462,21 +485,32 @@ def parse_fields_file(file_content_bytes, filename=""):
             opts = []
             persona = 'All'
             description = ''
+            placeholder = ''
 
             if persona_col_idx is not None and persona_col_idx < len(row) and not pd.isna(row[persona_col_idx]):
                 persona = str(row[persona_col_idx]).strip() or 'All'
+            if placeholder_col_idx is not None and placeholder_col_idx < len(row) and not pd.isna(row[placeholder_col_idx]):
+                placeholder = str(row[placeholder_col_idx]).strip()
             if desc_col_idx is not None and desc_col_idx < len(row) and not pd.isna(row[desc_col_idx]):
                 description = str(row[desc_col_idx]).strip()
 
             if has_opt_headers:
                 for col in range(2, len(row)):
-                    if col == persona_col_idx or col == desc_col_idx:
+                    if col in (persona_col_idx, desc_col_idx, placeholder_col_idx):
                         continue
                     if not pd.isna(row[col]) and str(row[col]).strip() and ftype == 'drop_list':
                         opts.append(str(row[col]).strip())
-            elif desc_col_idx is None and persona_col_idx is None:
-                if len(row) >= 5:
-                    # 5 columns: Title, Type, Options, Description, Persona
+            elif desc_col_idx is None and persona_col_idx is None and placeholder_col_idx is None:
+                if len(row) >= 6:
+                    # 6 columns: Title, Type, Options, Placeholder, Description, Persona
+                    col2_str = str(row[2]).strip() if not pd.isna(row[2]) else ''
+                    if col2_str and ftype == 'drop_list':
+                        opts = [o.strip() for o in col2_str.replace('，', ',').split(',') if o.strip()]
+                    placeholder = str(row[3]).strip() if not pd.isna(row[3]) else ''
+                    description = str(row[4]).strip() if not pd.isna(row[4]) else ''
+                    persona = str(row[5]).strip() if not pd.isna(row[5]) else 'All'
+                elif len(row) == 5:
+                    # 5 columns: Title, Type, Options, Description, Persona (or Placeholder, Description, Persona)
                     col2_str = str(row[2]).strip() if not pd.isna(row[2]) else ''
                     if col2_str and ftype == 'drop_list':
                         opts = [o.strip() for o in col2_str.replace('，', ',').split(',') if o.strip()]
@@ -497,7 +531,7 @@ def parse_fields_file(file_content_bytes, filename=""):
                         opts = [o.strip() for o in col2_str.replace('，', ',').split(',') if o.strip()]
             else:
                 for col in range(2, len(row)):
-                    if col == persona_col_idx or col == desc_col_idx:
+                    if col in (persona_col_idx, desc_col_idx, placeholder_col_idx):
                         continue
                     if not pd.isna(row[col]) and str(row[col]).strip() and ftype == 'drop_list':
                         cell_val = str(row[col]).strip()
@@ -506,7 +540,7 @@ def parse_fields_file(file_content_bytes, filename=""):
                         else:
                             opts.append(cell_val)
 
-            fields.append({'title': val0, 'type': ftype, 'options': opts, 'description': description, 'persona': persona})
+            fields.append({'title': val0, 'type': ftype, 'options': opts, 'placeholder': placeholder, 'description': description, 'persona': persona})
 
         return True, fields, f"Successfully parsed {len(fields)} fields from {filename or 'file'}."
     except Exception as e:

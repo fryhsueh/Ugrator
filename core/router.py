@@ -125,6 +125,10 @@ def dispatch_post(handler):
         handle_parse_ticket_templates(handler)
     elif path == '/api/batch-create-ticket-templates':
         handle_batch_create_ticket_templates(handler)
+    elif path == '/api/fetch-live-templates':
+        handle_fetch_live_templates(handler)
+    elif path == '/api/update-ticket-templates':
+        handle_update_ticket_templates(handler)
     else:
         send_json(handler, 404, {"success": False, "message": f"Unknown endpoint: {path}"})
 
@@ -625,6 +629,70 @@ def handle_batch_create_ticket_templates(handler):
         handler.end_headers()
 
         for chunk in core.templates.create_ticket_templates_stream(
+            auth_data=auth_data,
+            templates_list=templates,
+            tenant_fields_data=tenant_fields
+        ):
+            handler.wfile.write(chunk.encode('utf-8'))
+            handler.wfile.flush()
+    except Exception as e:
+        try:
+            handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode('utf-8') + b"\n")
+            handler.wfile.flush()
+        except Exception:
+            pass
+
+def handle_fetch_live_templates(handler):
+    content_length = int(handler.headers.get('Content-Length', 0))
+    body = handler.rfile.read(content_length).decode('utf-8') if content_length > 0 else '{}'
+    try:
+        req_data = json.loads(body) if body.strip() else {}
+        auth_script = req_data.get('auth_script', '')
+        auth_data, err = core.auth.parse_auth_string(auth_script)
+        if not auth_data:
+            send_json(handler, 400, {"success": False, "message": err or "Failed to parse authentication script."})
+            return
+
+        succ, templates, msg = core.templates.fetch_live_templates(auth_data)
+        if not succ:
+            send_json(handler, 400, {"success": False, "message": msg})
+            return
+
+        tsv_content = core.templates.convert_templates_to_tsv(templates)
+        send_json(handler, 200, {
+            "success": True,
+            "templates": templates,
+            "count": len(templates),
+            "tsv": tsv_content,
+            "message": msg
+        })
+    except Exception as e:
+        send_json(handler, 500, {"success": False, "message": str(e)})
+
+def handle_update_ticket_templates(handler):
+    content_length = int(handler.headers.get('Content-Length', 0))
+    body = handler.rfile.read(content_length).decode('utf-8')
+    try:
+        req_data = json.loads(body)
+        auth_script = req_data.get('auth_script', '')
+        templates = req_data.get('templates', [])
+        tenant_fields = req_data.get('tenant_fields')
+
+        auth_data, err = core.auth.parse_auth_string(auth_script)
+        if not auth_data:
+            send_json(handler, 400, {"success": False, "message": err or "Failed to parse authentication script."})
+            return
+
+        if not templates:
+            send_json(handler, 400, {"success": False, "message": "No ticket templates provided to update."})
+            return
+
+        handler.send_response(200)
+        handler.send_header('Content-Type', 'text/plain; charset=utf-8')
+        handler.send_header('Cache-Control', 'no-cache')
+        handler.end_headers()
+
+        for chunk in core.templates.update_ticket_templates_stream(
             auth_data=auth_data,
             templates_list=templates,
             tenant_fields_data=tenant_fields

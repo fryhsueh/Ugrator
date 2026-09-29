@@ -1301,6 +1301,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const optText = document.createElement('option');
             optText.value = 'text';
             optText.textContent = 'Text (单行)';
+            const optMulti = document.createElement('option');
+            optMulti.value = 'multiline';
+            optMulti.textContent = 'Multiline (多行/area_text)';
             const optDate = document.createElement('option');
             optDate.value = 'date';
             optDate.textContent = 'Date (日期)';
@@ -1308,6 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             optDrop.value = 'drop_list';
             optDrop.textContent = 'Dropdown (下拉)';
             selectType.appendChild(optText);
+            selectType.appendChild(optMulti);
             selectType.appendChild(optDate);
             selectType.appendChild(optDrop);
             selectType.value = item.type || 'text';
@@ -1339,7 +1343,21 @@ document.addEventListener('DOMContentLoaded', () => {
             tdOpts.appendChild(inputOpts);
             tr.appendChild(tdOpts);
 
-            // 5. Description
+            // 5. Placeholder / Hint
+            const tdPlaceholder = document.createElement('td');
+            const inputPlaceholder = document.createElement('input');
+            inputPlaceholder.type = 'text';
+            inputPlaceholder.className = 'grid-input';
+            inputPlaceholder.placeholder = 'e.g. Input guide / hint';
+            inputPlaceholder.value = item.placeholder || '';
+            inputPlaceholder.addEventListener('input', () => {
+                item.placeholder = inputPlaceholder.value;
+                saveGridToProfile();
+            });
+            tdPlaceholder.appendChild(inputPlaceholder);
+            tr.appendChild(tdPlaceholder);
+
+            // 6. Description
             const tdDesc = document.createElement('td');
             const inputDesc = document.createElement('input');
             inputDesc.type = 'text';
@@ -1353,7 +1371,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tdDesc.appendChild(inputDesc);
             tr.appendChild(tdDesc);
 
-            // 6. Persona
+            // 7. Persona
             const tdPersona = document.createElement('td');
             const inputPersona = document.createElement('input');
             inputPersona.type = 'text';
@@ -1368,12 +1386,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tdPersona.appendChild(inputPersona);
             tr.appendChild(tdPersona);
 
-            // 7. Hidden Roles
+            // 8. Hidden Roles
             const tdHidden = document.createElement('td');
             renderRowHiddenBadges(tdHidden, item);
             tr.appendChild(tdHidden);
 
-            // 8. Status
+            // 9. Status
             const tdStatus = document.createElement('td');
             tdStatus.style.textAlign = 'center';
             const badge = document.createElement('span');
@@ -1385,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tdStatus.appendChild(badge);
             tr.appendChild(tdStatus);
 
-            // 9. Action
+            // 10. Action
             const tdAction = document.createElement('td');
             tdAction.style.textAlign = 'center';
             const btnDel = document.createElement('button');
@@ -1405,11 +1423,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function addRow(title = '', type = 'text', options = [], description = '', persona = 'All') {
+    function addRow(title = '', type = 'text', options = [], placeholder = '', description = '', persona = 'All') {
         gridRows.push({
             title: title,
             type: type,
             options: options,
+            placeholder: placeholder,
             description: description,
             persona: persona,
             status: 'ready'
@@ -1506,7 +1525,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Normalize field type
             let fieldType = 'text';
             const rawType = cols[1] ? cols[1].toLowerCase() : '';
-            if (rawType.includes('date') || rawType.includes('日期') || rawType.includes('时间') || rawType.includes('time')) {
+            if (rawType.includes('multi') || rawType.includes('area') || rawType.includes('textarea') || rawType.includes('多行')) {
+                fieldType = 'multiline';
+            } else if (rawType.includes('date') || rawType.includes('日期') || rawType.includes('时间') || rawType.includes('time')) {
                 fieldType = 'date';
             } else if (
                 rawType.includes('drop') || rawType.includes('select') || rawType.includes('list') ||
@@ -1517,17 +1538,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 fieldType = 'text';
             }
 
-            // Extract options, description, and persona
+            // Extract options, placeholder, description, and persona
             let options = [];
+            let placeholder = '';
             let description = '';
             let persona = 'All';
 
             if (fieldType === 'drop_list') {
-                if (cols.length >= 5) {
+                if (cols.length >= 6) {
+                    options = cols[2].split(/[,，]/).map(o => o.trim()).filter(Boolean);
+                    placeholder = cols[3] || '';
+                    description = cols[4] || '';
+                    persona = cols[5] || 'All';
+                } else if (cols.length === 5) {
                     // Col 0: Name, Col 1: Type, Col 2: Options, Col 3: Description, Col 4: Persona
                     options = cols[2].split(/[,，]/).map(o => o.trim()).filter(Boolean);
-                    description = cols[3] || '';
-                    persona = cols[4] || 'All';
+                    if (knownPersonas.includes((cols[4] || '').toLowerCase())) {
+                        description = cols[3] || '';
+                        persona = cols[4] || 'All';
+                    } else {
+                        placeholder = cols[3] || '';
+                        description = cols[4] || '';
+                    }
                 } else if (cols.length === 4) {
                     options = cols[2].split(/[,，]/).map(o => o.trim()).filter(Boolean);
                     if (knownPersonas.includes((cols[3] || '').toLowerCase())) {
@@ -1539,16 +1571,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     options = cols[2].split(/[,，]/).map(o => o.trim()).filter(Boolean);
                 }
             } else {
-                // Text or Date
-                if (cols.length >= 5) {
-                    description = cols[3] || '';
-                    persona = cols[4] || 'All';
+                // Multiline, Text, or Date
+                if (cols.length >= 6) {
+                    // Col 0: Name, Col 1: Type, Col 2: (empty/opts), Col 3: Placeholder, Col 4: Description, Col 5: Persona
+                    placeholder = cols[3] || cols[2] || '';
+                    description = cols[4] || cols[3] || '';
+                    persona = cols[5] || 'All';
+                } else if (cols.length === 5) {
+                    if (knownPersonas.includes((cols[4] || '').toLowerCase())) {
+                        persona = cols[4] || 'All';
+                        placeholder = cols[2] || '';
+                        description = cols[3] || '';
+                    } else {
+                        placeholder = cols[2] || cols[3] || '';
+                        description = cols[4] || cols[3] || '';
+                    }
                 } else if (cols.length === 4) {
                     if (knownPersonas.includes((cols[3] || '').toLowerCase())) {
                         persona = cols[3] || 'All';
                         description = cols[2] || '';
                     } else {
-                        description = cols[3] || cols[2] || '';
+                        placeholder = cols[2] || '';
+                        description = cols[3] || '';
                     }
                 } else if (cols.length === 3) {
                     if (knownPersonas.includes((cols[2] || '').toLowerCase())) {
@@ -1563,6 +1607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: name,
                 type: fieldType,
                 options: options,
+                placeholder: placeholder,
                 description: description,
                 persona: persona,
                 status: 'ready'
@@ -1849,6 +1894,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 title: f.title.trim(),
                                 type: f.type,
                                 options: Array.isArray(f.options) ? f.options : (f.options ? f.options.split(/[,，]/).map(s => s.trim()).filter(Boolean) : []),
+                                placeholder: f.placeholder || '',
                                 description: f.description || '',
                                 persona: f.persona || 'All',
                                 invisible_role_ids: invIds
@@ -3466,6 +3512,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnTplClear = document.getElementById('btn-tpl-clear');
         const btnGotoCreateFields = document.getElementById('btn-goto-create-fields');
         const btnExecuteCreateTemplates = document.getElementById('btn-execute-create-templates');
+        const btnExecuteUpdateTemplates = document.getElementById('btn-execute-update-templates');
+        const btnTplFetchLive = document.getElementById('btn-tpl-fetch-live');
 
         if (!tplPasteBox || !btnExecuteCreateTemplates) return;
 
@@ -3535,6 +3583,10 @@ Maintenance Type*`;
                 tplStrictGuardAlert.style.display = 'none';
                 btnExecuteCreateTemplates.textContent = 'Create Ticket Templates (0 Templates)';
                 btnExecuteCreateTemplates.disabled = true;
+                if (btnExecuteUpdateTemplates) {
+                    btnExecuteUpdateTemplates.textContent = '🔄 Update Existing Templates (0 Templates)';
+                    btnExecuteUpdateTemplates.disabled = true;
+                }
                 return;
             }
 
@@ -3570,12 +3622,17 @@ Maintenance Type*`;
                         tplStrictGuardAlert.style.display = 'none';
                         btnExecuteCreateTemplates.disabled = count === 0;
                         btnExecuteCreateTemplates.textContent = `Create Ticket Templates (${count} Template${count > 1 ? 's' : ''})`;
+                        if (btnExecuteUpdateTemplates) {
+                            btnExecuteUpdateTemplates.disabled = count === 0;
+                            btnExecuteUpdateTemplates.textContent = `🔄 Update Existing Templates (${count} Template${count > 1 ? 's' : ''})`;
+                        }
                     }
                 } else {
                     parsedTemplatesList = [];
                     isStrictGuardValid = false;
                     tplValidationBadge.innerHTML = `<span class="badge-status badge-error">❌ Parse error</span>`;
                     btnExecuteCreateTemplates.disabled = true;
+                    if (btnExecuteUpdateTemplates) btnExecuteUpdateTemplates.disabled = true;
                 }
             } catch (err) {
                 console.error("Error parsing templates:", err);
@@ -3591,6 +3648,10 @@ Maintenance Type*`;
                 tplStrictGuardAlert.style.display = 'none';
                 btnExecuteCreateTemplates.disabled = count === 0;
                 btnExecuteCreateTemplates.textContent = `Create Ticket Templates (${count} Template${count > 1 ? 's' : ''})`;
+                if (btnExecuteUpdateTemplates) {
+                    btnExecuteUpdateTemplates.disabled = count === 0;
+                    btnExecuteUpdateTemplates.textContent = `🔄 Update Existing Templates (${count} Template${count > 1 ? 's' : ''})`;
+                }
             } else if (missingEntries.length > 0) {
                 const totalMissing = missingEntries.reduce((acc, [, list]) => acc + list.length, 0);
                 tplValidationBadge.innerHTML = `<span class="badge-status badge-error">🛡️ Missing ${totalMissing} Field(s)</span>`;
@@ -3605,11 +3666,19 @@ Maintenance Type*`;
 
                 btnExecuteCreateTemplates.disabled = true;
                 btnExecuteCreateTemplates.textContent = `Blocked by Strict Guard (Resolve Missing Fields)`;
+                if (btnExecuteUpdateTemplates) {
+                    btnExecuteUpdateTemplates.disabled = true;
+                    btnExecuteUpdateTemplates.textContent = `Blocked by Strict Guard (Resolve Missing Fields)`;
+                }
             } else {
                 tplValidationBadge.innerHTML = '<span class="badge-status badge-neutral">ℹ️ Enter Auth to check fields</span>';
                 tplStrictGuardAlert.style.display = 'none';
                 btnExecuteCreateTemplates.disabled = count === 0;
                 btnExecuteCreateTemplates.textContent = `Create Ticket Templates (${count} Template${count > 1 ? 's' : ''})`;
+                if (btnExecuteUpdateTemplates) {
+                    btnExecuteUpdateTemplates.disabled = count === 0;
+                    btnExecuteUpdateTemplates.textContent = `🔄 Update Existing Templates (${count} Template${count > 1 ? 's' : ''})`;
+                }
             }
         }
 
@@ -3779,6 +3848,129 @@ Maintenance Type*`;
             } finally {
                 btnExecuteCreateTemplates.disabled = false;
                 btnExecuteCreateTemplates.textContent = `Create Ticket Templates (${parsedTemplatesList.length} Templates)`;
+            }
+        });
+
+        btnTplFetchLive?.addEventListener('click', async () => {
+            const authScript = document.getElementById('global-auth-script')?.value.trim();
+            if (!authScript) {
+                logToConsole('Error: Please enter the Global Authentication Script first to fetch live templates.', 'error');
+                return;
+            }
+
+            btnTplFetchLive.disabled = true;
+            btnTplFetchLive.textContent = '⏳ Fetching Templates...';
+            logToConsole('Fetching live ticket templates from tenant...', 'system');
+
+            try {
+                const response = await fetch('/api/fetch-live-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth_script: authScript })
+                });
+
+                const data = await response.json();
+                if (data.success && data.tsv) {
+                    tplPasteBox.value = data.tsv;
+                    try {
+                        await navigator.clipboard.writeText(data.tsv);
+                        logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor & copied to clipboard.`, 'success');
+                    } catch (clipErr) {
+                        logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor.`, 'success');
+                    }
+                    parseAndValidateTemplates();
+                } else {
+                    logToConsole(`Failed to fetch templates: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (err) {
+                logToConsole(`Error fetching templates: ${err.message}`, 'error');
+            } finally {
+                btnTplFetchLive.disabled = false;
+                btnTplFetchLive.textContent = '📋 Fetch & Copy Live Templates (TSV)';
+            }
+        });
+
+        btnExecuteUpdateTemplates?.addEventListener('click', async () => {
+            const authScript = document.getElementById('global-auth-script')?.value.trim();
+            if (!authScript) {
+                logToConsole('Error: Please enter the Global Authentication Script first.', 'error');
+                return;
+            }
+
+            if (parsedTemplatesList.length === 0) {
+                logToConsole('Error: No template definitions to update.', 'error');
+                return;
+            }
+
+            if (!isStrictGuardValid && localTenantTicketFields) {
+                logToConsole('Blocked by Strict Guard: Cannot update templates while referenced fields are missing in tenant.', 'error');
+                return;
+            }
+
+            btnExecuteUpdateTemplates.disabled = true;
+            btnExecuteUpdateTemplates.textContent = 'Updating Templates...';
+            logToConsole(`Initiating batch update for ${parsedTemplatesList.length} template(s)...`, 'system');
+
+            try {
+                const response = await fetch('/api/update-ticket-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        auth_script: authScript,
+                        templates: parsedTemplatesList,
+                        tenant_fields: localTenantTicketFields
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    try {
+                        const errJson = JSON.parse(text);
+                        logToConsole(`Update failed: ${errJson.message}`, 'error');
+                    } catch {
+                        logToConsole(`Update failed: ${text}`, 'error');
+                    }
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.status === 'progress') {
+                                btnExecuteUpdateTemplates.textContent = `Updating (${data.data?.index || 1}/${parsedTemplatesList.length})...`;
+                                logToConsole(data.message, 'info');
+                            } else if (data.status === 'done') {
+                                logToConsole(data.message, 'success');
+                            } else if (data.status === 'error') {
+                                logToConsole(data.message, 'error');
+                            } else if (data.status === 'warn') {
+                                logToConsole(data.message, 'warning');
+                            } else {
+                                logToConsole(data.message || line, data.status || 'system');
+                            }
+                        } catch (e) {
+                            logToConsole(line, 'system');
+                        }
+                    }
+                }
+            } catch (err) {
+                logToConsole(`Request failed: ${err.message}`, 'error');
+            } finally {
+                btnExecuteUpdateTemplates.disabled = false;
+                btnExecuteUpdateTemplates.textContent = `🔄 Update Existing Templates (${parsedTemplatesList.length} Templates)`;
             }
         });
 

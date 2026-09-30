@@ -267,7 +267,7 @@ Description\trequired
                 "id": 1001,
                 "name": "Vehicle Service",
                 "fields": [
-                    {"title": "VIN", "required": True},
+                    {"title": "VIN", "field_id": 28101, "required": True},
                     {"title": "Mileage", "is_required": False}
                 ]
             },
@@ -275,16 +275,16 @@ Description\trequired
                 "id": 1002,
                 "name": "Quick Ticket",
                 "fields": [
-                    {"name": "Summary", "required": True}
+                    {"name": "Summary", "id": 505, "required": True}
                 ]
             }
         ]
         tsv = convert_templates_to_tsv(tpls)
         self.assertIn("Template: Vehicle Service (#1001)", tsv)
-        self.assertIn("VIN\ttrue", tsv)
+        self.assertIn("VIN (#28101)\ttrue", tsv)
         self.assertIn("Mileage\tfalse", tsv)
         self.assertIn("Template: Quick Ticket (#1002)", tsv)
-        self.assertIn("Summary\ttrue", tsv)
+        self.assertIn("Summary (#505)\ttrue", tsv)
 
     def test_update_ticket_templates_stream_by_id_and_name(self):
         import json

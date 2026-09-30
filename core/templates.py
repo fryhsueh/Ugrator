@@ -578,10 +578,25 @@ def convert_templates_to_tsv(templates_list):
             if not isinstance(f, dict):
                 continue
             title = str(f.get("title") or f.get("name") or "").strip()
+            f_id = f.get("field_id")
+            if f_id is None:
+                raw_id = f.get("id")
+                if raw_id is not None and str(raw_id).isdigit():
+                    f_id = raw_id
+
+            if not title and f_id:
+                title = f"#{f_id}"
+
             if not title:
                 continue
+
+            # Append (#ID) to title if ID is available and not already in title
+            field_identifier = title
+            if f_id and f"#{f_id}" not in title:
+                field_identifier = f"{title} (#{f_id})"
+
             is_req = bool(f.get("required") or f.get("is_required", False))
-            lines.append(f"{title}\t{str(is_req).lower()}")
+            lines.append(f"{field_identifier}\t{str(is_req).lower()}")
 
         blocks.append("\n".join(lines))
 

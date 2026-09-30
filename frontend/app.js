@@ -3870,15 +3870,19 @@ Maintenance Type*`;
                 });
 
                 const data = await response.json();
-                if (data.success && data.tsv) {
-                    tplPasteBox.value = data.tsv;
-                    try {
-                        await navigator.clipboard.writeText(data.tsv);
-                        logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor & copied to clipboard.`, 'success');
-                    } catch (clipErr) {
-                        logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor.`, 'success');
+                if (data.success) {
+                    if (data.count === 0 || !data.tsv) {
+                        logToConsole('Successfully connected, but no ticket templates were found in this tenant.', 'warning');
+                    } else {
+                        tplPasteBox.value = data.tsv;
+                        try {
+                            await navigator.clipboard.writeText(data.tsv);
+                            logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor & copied to clipboard.`, 'success');
+                        } catch (clipErr) {
+                            logToConsole(`Successfully fetched ${data.count} existing templates! TSV loaded into editor.`, 'success');
+                        }
+                        parseAndValidateTemplates();
                     }
-                    parseAndValidateTemplates();
                 } else {
                     logToConsole(`Failed to fetch templates: ${data.message || 'Unknown error'}`, 'error');
                 }

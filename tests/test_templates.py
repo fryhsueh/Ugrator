@@ -226,7 +226,7 @@ Description\trequired
         self.assertFalse(succ)
         self.assertIn("Missing base URL", msg)
 
-        # Successful fetch
+        # Successful fetch with ticket_templates key
         mock_resp = {
             "status": 200,
             "data": {
@@ -241,6 +241,23 @@ Description\trequired
             self.assertTrue(succ)
             self.assertEqual(len(tpls), 2)
             self.assertEqual(tpls[0]["name"], "Template A")
+
+        # Successful fetch with items key (actual live API format)
+        mock_resp_items = {
+            "status": 200,
+            "data": {
+                "code": 1000,
+                "items": [
+                    {"id": 201, "name": "Inquiry Template", "fields": []},
+                    {"id": 202, "name": "Complaint Template", "fields": []}
+                ]
+            }
+        }
+        with patch("core.templates.execute_request", return_value=mock_resp_items):
+            succ2, tpls2, msg2 = fetch_live_templates({"base_url": "https://tenant.desk-platform.com"})
+            self.assertTrue(succ2)
+            self.assertEqual(len(tpls2), 2)
+            self.assertEqual(tpls2[0]["name"], "Inquiry Template")
 
     def test_convert_templates_to_tsv(self):
         from core.templates import convert_templates_to_tsv

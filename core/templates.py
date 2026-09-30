@@ -541,8 +541,10 @@ def fetch_live_templates(auth_data):
         templates = resp_data
     elif isinstance(resp_data, dict):
         templates = (
+            resp_data.get("items") or
             resp_data.get("ticket_templates") or
             resp_data.get("templates") or
+            (resp_data.get("data", {}).get("items") if isinstance(resp_data.get("data"), dict) else None) or
             (resp_data.get("data", {}).get("ticket_templates") if isinstance(resp_data.get("data"), dict) else None) or
             (resp_data.get("data") if isinstance(resp_data.get("data"), list) else None) or
             []

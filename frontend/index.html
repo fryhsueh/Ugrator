@@ -200,6 +200,10 @@
                                     <span class="paste-hint-text">💡 <b>Format:</b> <code>Field Name [Tab] Type [Tab] Options [Tab] Placeholder/Guide [Tab] Description [Tab] Persona</code> | <i>Empty columns: leave blank or <code>[Tab][Tab]</code></i></span>
                                 </div>
                                 <div class="paste-btns-group">
+                                    <button type="button" class="btn-tool-secondary" id="btn-copy-format-guide"
+                                        title="Copy AI Prompt Guide & format specifications to clipboard">
+                                        📋 Copy AI Guide
+                                    </button>
                                     <button type="button" class="btn-tool-secondary" id="btn-paste-sample"
                                         title="Insert sample demonstration fields">
                                         📥 Insert Sample
@@ -214,6 +218,25 @@
                                     </button>
                                 </div>
                             </div>
+
+                            <!-- Expandable AI Guide Drawer -->
+                            <details class="paste-guide-panel" id="paste-guide-panel">
+                                <summary class="paste-guide-header">
+                                    <span class="paste-guide-title">📖 View / Copy AI Prompt Guide &amp; Format Specifications</span>
+                                    <button type="button" class="btn-copy-inline" id="btn-copy-guide-inline" title="Copy full guide block to clipboard">
+                                        📋 Copy Guide
+                                    </button>
+                                </summary>
+                                <pre class="paste-guide-code" id="paste-guide-code-content">Format (6 Columns): Field Name [Tab] Type [Tab] Options [Tab] Placeholder/Guide [Tab] Description [Tab] Persona
+• Empty Column Rule: Represent empty columns with consecutive tabs ([Tab][Tab]) or leave cells blank in Excel.
+• Multiline Field: Use type 'multiline' (or 'area_text') with a guide message in Col 4.
+
+Examples:
+Customer Name&#9;text&#9;&#9;Please enter full name&#9;Customer full legal name&#9;Agent
+Incident Details&#9;multiline&#9;&#9;Briefly describe problem &amp; steps&#9;Detailed customer problem summary&#9;All
+Purchase Date&#9;date&#9;&#9;Select purchase date&#9;Date of handover&#9;All
+Product Model&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#9;&#9;Product model selection&#9;All</pre>
+                            </details>
                         </div>
                     </div>
 

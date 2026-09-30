@@ -805,6 +805,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPasteSample = document.getElementById('btn-paste-sample');
     const btnPasteClear = document.getElementById('btn-paste-clear');
     const btnParsePaste = document.getElementById('btn-parse-paste');
+    const btnCopyFormatGuide = document.getElementById('btn-copy-format-guide');
+    const btnCopyGuideInline = document.getElementById('btn-copy-guide-inline');
 
     const excelDropZone = document.getElementById('excel-drop-zone');
     const fileFieldsInput = document.getElementById('file-fields-input');
@@ -1665,6 +1667,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 fieldsPasteTextarea.value = '';
                 fieldsPasteTextarea.focus();
             }
+        });
+    }
+
+    const aiFormatGuideText = [
+        'Format (6 Columns): Field Name [Tab] Type [Tab] Options [Tab] Placeholder/Guide [Tab] Description [Tab] Persona',
+        '• Empty Column Rule: Represent empty columns with consecutive tabs ([Tab][Tab]) or leave cells blank in Excel.',
+        '• Multiline Field: Use type \'multiline\' (or \'area_text\') with a guide message in Col 4.',
+        '',
+        'Examples:',
+        'Customer Name\ttext\t\tPlease enter full name\tCustomer full legal name\tAgent',
+        'Incident Details\tmultiline\t\tBriefly describe problem & steps\tDetailed customer problem summary\tAll',
+        'Purchase Date\tdate\t\tSelect purchase date\tDate of handover\tAll',
+        'Product Model\tdrop_list\tModel Alpha, Model Beta, Model Pro\t\tProduct model selection\tAll'
+    ].join('\n');
+
+    async function copyAiGuide(btnElement) {
+        try {
+            await navigator.clipboard.writeText(aiFormatGuideText);
+            const originalHTML = btnElement ? btnElement.innerHTML : '';
+            if (btnElement) {
+                btnElement.innerHTML = '✅ Copied!';
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHTML;
+                }, 2000);
+            }
+            logToConsole('Copied AI Prompt Guide & format specifications to clipboard! You can paste this to your AI assistant.', 'success');
+        } catch (err) {
+            logToConsole(`Failed to copy guide to clipboard: ${err.message}`, 'error');
+        }
+    }
+
+    if (btnCopyFormatGuide) {
+        btnCopyFormatGuide.addEventListener('click', () => {
+            copyAiGuide(btnCopyFormatGuide);
+        });
+    }
+
+    if (btnCopyGuideInline) {
+        btnCopyGuideInline.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyAiGuide(btnCopyGuideInline);
         });
     }
 

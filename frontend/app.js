@@ -1646,15 +1646,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPasteSample.addEventListener('click', () => {
             if (!fieldsPasteTextarea) return;
             const sampleText = [
-                'Customer Name\ttext',
-                'Purchase Date\tdate',
-                'Product Model\tdrop_list\tModel Alpha, Model Beta, Model Pro',
-                'Distributor Feedback\ttext\t\tDealer service evaluation note\tDistributor',
-                'Issue Category\tdrop_list\tEngine, Electrical, Body, Maintenance\tPrimary breakdown classification\tAll'
+                'Customer Name\ttext\t\tPlease enter customer legal name\tCustomer full legal name\tAgent',
+                'Incident Details\tmultiline\t\tBriefly describe the occurrence and troubleshooting steps\tDetailed customer problem summary\tAll',
+                'Purchase Date\tdate\t\tSelect purchase date\tDate of product purchase\tAll',
+                'Product Model\tdrop_list\tModel Alpha, Model Beta, Model Pro\t\tProduct model code\tAll',
+                'Distributor Defect Code\ttext\t\tEnter dealer defect code\tDealer internal repair defect identifier\tDistributor',
+                'Issue Category\tdrop_list\tEngine, Transmission, Electrical, Body, Other\t\tPrimary issue classification\tAll'
             ].join('\n');
             fieldsPasteTextarea.value = sampleText;
             fieldsPasteTextarea.focus();
-            logToConsole('Inserted sample custom fields demonstration with descriptions and personas into paste box.', 'system');
+            logToConsole('Inserted 6-column sample fields demonstrating multiline, guide hints, and empty columns into paste box.', 'system');
         });
     }
 

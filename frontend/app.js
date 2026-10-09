@@ -2866,18 +2866,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const KNOWN_AGENT_PROFILES = new Set([
+        'ticket', '工单', '工单客服', '工单员工', 'tickets',
+        'all', '全渠道', '全渠道员工', '全渠道客服',
+        'callcenter', 'cc', '呼叫中心', '呼叫中心员工', '呼叫', '电话客服', '外呼员工',
+        'im', 'chat', '在线客服', '即时通讯', '即时通讯员工', '在线'
+    ]);
+
+    function normalizeAgentProfile(val, defaultProfile = 'all') {
+        if (!val || typeof val !== 'string' || !val.trim()) return defaultProfile || 'all';
+        const v = val.trim().toLowerCase();
+        if (['ticket', '工单', '工单客服', '工单员工', 'tickets'].includes(v)) return 'ticket';
+        if (['callcenter', 'cc', '呼叫中心', '呼叫中心员工', '呼叫', '电话客服', '外呼员工'].includes(v)) return 'callcenter';
+        if (['im', 'chat', '在线客服', '即时通讯', '即时通讯员工', '在线'].includes(v)) return 'im';
+        if (['all', '全渠道', '全渠道员工', '全渠道客服'].includes(v)) return 'all';
+        return v;
+    }
+
     // Sample insertion and clear
     if (btnPasteAgentSample) {
         btnPasteAgentSample.addEventListener('click', () => {
             if (!agentsPasteTextarea) return;
             agentsPasteTextarea.value = [
                 'agent1@example.com, Agent One',
-                'agent2@example.com, Alex Agent',
-                'agent3@example.com\tSam Support',
-                'agent4@example.com'
+                'agent2@example.com, Ticket Specialist, Pass2026, 1694511, ticket',
+                'agent3@example.com\tSam Support\tPass2026\t1694511\tcallcenter',
+                'agent4@example.com, Online IM Agent, Pass2026, 1694511, im'
             ].join('\n');
             agentsPasteTextarea.focus();
-            logToConsole('Inserted sample agent emails with nicknames into paste box.', 'system');
+            logToConsole('Inserted sample agent emails with nicknames and types into paste box.', 'system');
         });
     }
 
@@ -2891,16 +2908,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 3. Load agents into Overview List
-    function parseAgentLine(line) {
+    function parseAgentLine(line, defaultProfile = 'all', defaultRoleId = '') {
         if (!line || !line.trim()) return null;
         const trimmed = line.trim();
         const delimiter = trimmed.includes('\t') ? '\t' : (trimmed.includes(',') ? ',' : null);
         let email = '';
         let nickName = '';
+        let password = '';
+        let roleId = defaultRoleId;
+        let profile = defaultProfile;
+
         if (delimiter) {
             const parts = trimmed.split(delimiter).map(p => p.trim());
             email = parts[0];
-            nickName = parts[1] || '';
+            if (parts.length > 1) nickName = parts[1];
+            if (parts.length === 3) {
+                if (KNOWN_AGENT_PROFILES.has(parts[2].toLowerCase())) {
+                    profile = normalizeAgentProfile(parts[2], defaultProfile);
+                } else {
+                    password = parts[2];
+                }
+            } else if (parts.length === 4) {
+                password = parts[2];
+                if (KNOWN_AGENT_PROFILES.has(parts[3].toLowerCase())) {
+                    profile = normalizeAgentProfile(parts[3], defaultProfile);
+                } else {
+                    roleId = parts[3];
+                }
+            } else if (parts.length >= 5) {
+                password = parts[2];
+                roleId = parts[3];
+                profile = normalizeAgentProfile(parts[4], defaultProfile);
+            }
         } else {
             const spaceIdx = trimmed.indexOf(' ');
             if (spaceIdx > 0 && trimmed.slice(0, spaceIdx).includes('@')) {
@@ -2912,7 +2951,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         email = email.toLowerCase();
         if (!email.includes('@')) return null;
-        return { email, nick_name: nickName };
+        return { email, nick_name: nickName, profile, role_id: roleId, password };
     }
 
     function addAgentsToOverview(itemsList) {
@@ -2930,12 +2969,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 email = String(raw.email || '').trim().toLowerCase();
                 nickName = String(raw.nick_name || raw.name || '').trim();
                 if (raw.role_id) roleId = raw.role_id;
-                if (raw.profile) profile = raw.profile;
+                else if (raw.agent_role_ids && raw.agent_role_ids.length > 0) roleId = raw.agent_role_ids[0];
+                if (raw.profile) profile = normalizeAgentProfile(raw.profile, defaultProfile);
             } else {
-                const parsed = parseAgentLine(String(raw));
+                const parsed = parseAgentLine(String(raw), defaultProfile, defaultRoleId);
                 if (!parsed) return;
                 email = parsed.email;
                 nickName = parsed.nick_name;
+                profile = parsed.profile;
+                if (parsed.role_id) roleId = parsed.role_id;
             }
 
             if (!email || !email.includes('@')) return;
@@ -2986,15 +3028,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1 });
                 const agentItems = [];
-                rows.forEach((r, idx) => {
-                    if (!r || r.length === 0) return;
-                    const val = String(r[0] || '').trim();
-                    if (idx === 0 && (val.toLowerCase().includes('email') || val.includes('邮箱'))) return;
-                    if (val && val.includes('@')) {
-                        const nick = r.length > 1 && r[1] ? String(r[1]).trim() : '';
-                        agentItems.push({ email: val, nick_name: nick });
+                const defaultProfile = agentGlobalProfile ? agentGlobalProfile.value : 'all';
+                const defaultRoleId = agentGlobalRole ? agentGlobalRole.value : '';
+
+                let headerIdx = -1;
+                let emailCol = -1, nameCol = -1, nickCol = -1, pwdCol = -1, roleCol = -1, profCol = -1;
+
+                // Detect headers in first 5 rows
+                for (let rIdx = 0; rIdx < Math.min(5, rows.length); rIdx++) {
+                    const row = rows[rIdx];
+                    if (!row || !Array.isArray(row)) continue;
+                    const rowStrs = row.map(c => String(c || '').toLowerCase().trim());
+                    if (rowStrs.some(s => s.includes('email') || s.includes('邮箱') || s.includes('登录账号'))) {
+                        headerIdx = rIdx;
+                        rowStrs.forEach((s, cIdx) => {
+                            if (emailCol === -1 && (s.includes('email') || s.includes('邮箱') || s.includes('登录账号'))) emailCol = cIdx;
+                            else if (nickCol === -1 && (s.includes('昵称') || s.includes('nickname'))) nickCol = cIdx;
+                            else if (nameCol === -1 && (s.includes('姓名') || s === 'name')) nameCol = cIdx;
+                            else if (pwdCol === -1 && (s.includes('密码') || s.includes('password'))) pwdCol = cIdx;
+                            else if (roleCol === -1 && (s.includes('角色') || s.includes('role'))) roleCol = cIdx;
+                            else if (profCol === -1 && (s.includes('员工类型') || s.includes('账号类型') || s.includes('客服类型') || s.includes('profile') || s.includes('type'))) profCol = cIdx;
+                        });
+                        break;
                     }
-                });
+                }
+
+                if (headerIdx !== -1 && emailCol !== -1) {
+                    for (let idx = headerIdx + 1; idx < rows.length; idx++) {
+                        const r = rows[idx];
+                        if (!r || !r[emailCol]) continue;
+                        const em = String(r[emailCol]).trim();
+                        if (!em.includes('@')) continue;
+                        const nick = nickCol !== -1 && r[nickCol] ? String(r[nickCol]).trim() : (nameCol !== -1 && r[nameCol] ? String(r[nameCol]).trim() : '');
+                        const role = roleCol !== -1 && r[roleCol] ? String(r[roleCol]).trim() : defaultRoleId;
+                        const prof = profCol !== -1 && r[profCol] ? normalizeAgentProfile(String(r[profCol]), defaultProfile) : defaultProfile;
+                        agentItems.push({ email: em, nick_name: nick, role_id: role, profile: prof });
+                    }
+                } else {
+                    rows.forEach((r, idx) => {
+                        if (!r || r.length === 0) return;
+                        const val = String(r[0] || '').trim();
+                        if (idx === 0 && (val.toLowerCase().includes('email') || val.includes('邮箱'))) return;
+                        if (val && val.includes('@')) {
+                            const nick = r.length > 1 && r[1] ? String(r[1]).trim() : '';
+                            const role = r.length > 3 && r[3] ? String(r[3]).trim() : defaultRoleId;
+                            const prof = r.length > 4 && r[4] ? normalizeAgentProfile(String(r[4]), defaultProfile) : defaultProfile;
+                            agentItems.push({ email: val, nick_name: nick, role_id: role, profile: prof });
+                        }
+                    });
+                }
                 const added = addAgentsToOverview(agentItems);
                 logToConsole(`Loaded ${added} agent(s) from ${file.name}.`, 'success');
                 return;
@@ -3221,6 +3303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectType.style.fontSize = '0.82rem';
             selectType.innerHTML = `
                 <option value="all" ${row.profile === 'all' ? 'selected' : ''}>All Channels / 全渠道 (all)</option>
+                <option value="ticket" ${row.profile === 'ticket' ? 'selected' : ''}>Ticket / 工单客服 (ticket)</option>
                 <option value="callcenter" ${row.profile === 'callcenter' ? 'selected' : ''}>Call Center / 呼叫中心 (callcenter)</option>
                 <option value="im" ${row.profile === 'im' ? 'selected' : ''}>Online IM / 在线客服 (im)</option>
             `;

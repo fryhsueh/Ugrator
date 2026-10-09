@@ -586,6 +586,7 @@ Product Model&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#9;&#9;Product 
                             <label for="agent-global-profile" style="font-size: 0.82rem; margin-bottom: 4px;">Default Account Type</label>
                             <select id="agent-global-profile" class="form-select">
                                 <option value="all" selected>All Channels / 全渠道 (all)</option>
+                                <option value="ticket">Ticket / 工单客服 (ticket)</option>
                                 <option value="callcenter">Call Center / 呼叫中心 (callcenter)</option>
                                 <option value="im">Online IM / 在线客服 (im)</option>
                             </select>
@@ -617,10 +618,10 @@ Product Model&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#9;&#9;Product 
                     <!-- Panel 1: Quick Paste -->
                     <div class="creator-mode-panel" id="panel-mode-agent-paste">
                         <div class="paste-box-wrapper">
-                            <textarea id="agents-paste-textarea" class="paste-textarea" rows="4" placeholder="Enter agent email addresses (and optional nick name), one per line...&#10;Examples:&#10;agent1@example.com, Agent One&#10;agent2@example.com&#9;Agent 2&#10;agent3@example.com"></textarea>
+                            <textarea id="agents-paste-textarea" class="paste-textarea" rows="4" placeholder="Enter agent email addresses (and optional nick name, password, role_id, type), one per line...&#10;Examples:&#10;agent1@example.com, Agent One&#10;agent2@example.com, Agent Two, Pass2026, 1694511, ticket&#10;agent3@example.com&#9;Agent 3"></textarea>
                             <div class="paste-actions-bar">
                                 <div class="paste-hints">
-                                    <span class="paste-hint-text">💡 Format: <code>email [Tab or Comma] optional_nickname</code>. Defaults above will be assigned automatically.</span>
+                                    <span class="paste-hint-text">💡 Format: <code>email [Tab or Comma] optional_nickname [optional_pwd] [optional_role] [optional_type]</code>. Supports <code>ticket</code>, <code>all</code>, <code>callcenter</code>, <code>im</code>. Defaults above apply if omitted.</span>
                                 </div>
                                 <div class="paste-btns-group">
                                     <button type="button" class="btn-tool-secondary" id="btn-paste-agent-sample" title="Insert sample emails">
@@ -667,6 +668,7 @@ Product Model&#9;drop_list&#9;Model Alpha, Model Beta, Model Pro&#9;&#9;Product 
                             <span style="font-size: 0.8rem; color: var(--text-secondary);">Batch Update Selected:</span>
                             <select id="agent-batch-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 0.8rem; height: 32px;">
                                 <option value="all">Type: All Channels (all)</option>
+                                <option value="ticket">Type: Ticket (ticket)</option>
                                 <option value="callcenter">Type: Call Center (callcenter)</option>
                                 <option value="im">Type: Online IM (im)</option>
                             </select>

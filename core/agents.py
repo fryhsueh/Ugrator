@@ -16,7 +16,7 @@ def to_id_list(value):
         res = []
         for item in value:
             try:
-                res.append(int(item))
+                res.append(int(float(item)))
             except (ValueError, TypeError):
                 continue
         return res
@@ -28,11 +28,43 @@ def to_id_list(value):
             part = part.strip()
             if part:
                 try:
-                    res.append(int(part))
+                    res.append(int(float(part)))
                 except (ValueError, TypeError):
                     continue
         return res
     return []
+
+KNOWN_PROFILES = {
+    "ticket", "工单", "工单客服", "工单员工", "tickets",
+    "all", "全渠道", "全渠道员工", "全渠道客服",
+    "callcenter", "cc", "呼叫中心", "呼叫中心员工", "呼叫", "电话客服", "外呼员工",
+    "im", "chat", "在线客服", "即时通讯", "即时通讯员工", "在线"
+}
+
+def normalize_profile(val, default="all"):
+    """
+    Normalizes account type string to standard Udesk profile values:
+    'ticket', 'all', 'callcenter', 'im'.
+    Accepts Chinese aliases and case-insensitive variations.
+    """
+    if val is None or not str(val).strip():
+        return default
+    v = str(val).strip().lower()
+
+    # Ticket aliases
+    if v in ("ticket", "工单", "工单客服", "工单员工", "tickets"):
+        return "ticket"
+    # Call Center aliases
+    if v in ("callcenter", "cc", "呼叫中心", "呼叫中心员工", "呼叫", "电话客服", "外呼员工"):
+        return "callcenter"
+    # IM aliases
+    if v in ("im", "chat", "在线客服", "即时通讯", "即时通讯员工", "在线"):
+        return "im"
+    # All channels aliases
+    if v in ("all", "全渠道", "全渠道员工", "全渠道客服"):
+        return "all"
+
+    return v
 
 def fetch_agent_metadata(auth_data):
     """
@@ -133,7 +165,8 @@ def build_agent_payload(agent_item, defaults=None):
     name = str(agent_item.get("name", "")).strip() if agent_item.get("name") else ""
     nick_name = str(agent_item.get("nick_name", "")).strip() if agent_item.get("nick_name") else ""
     password = str(agent_item.get("password") or merged_defaults["password"])
-    profile = str(agent_item.get("profile") or merged_defaults["profile"])
+    raw_profile = agent_item.get("profile") or merged_defaults.get("profile", "all")
+    profile = normalize_profile(raw_profile, default="all")
 
     # Resolve ID lists
     role_ids = to_id_list(agent_item.get("agent_role_ids")) or to_id_list(merged_defaults.get("agent_role_ids"))
@@ -182,11 +215,14 @@ def parse_agents_text(text_content, default_profile="all", default_role_ids=None
       - Comma/tab delimited: email, name
       - Comma/tab delimited: email, name, role
       - Comma/tab delimited: email, name, password, role_id
+      - Comma/tab delimited: email, name, password, role_id, profile (e.g. ticket, all, callcenter, im)
     Automatically detects and skips header lines.
     """
     agents = []
     if not text_content:
         return agents
+
+    default_prof = normalize_profile(default_profile, default="all")
 
     lines = text_content.strip().splitlines()
     for idx, raw_line in enumerate(lines):
@@ -206,8 +242,8 @@ def parse_agents_text(text_content, default_profile="all", default_role_ids=None
             continue
 
         agent = {
-            "email": email,
-            "profile": default_profile
+            "email": email.lower(),
+            "profile": default_prof
         }
         if default_role_ids:
             agent["agent_role_ids"] = to_id_list(default_role_ids)
@@ -216,10 +252,30 @@ def parse_agents_text(text_content, default_profile="all", default_role_ids=None
             val1 = parts[1]
             agent["name"] = val1
             agent["nick_name"] = val1
-        if len(parts) > 2 and parts[2]:
-            agent["password"] = parts[2]
-        if len(parts) > 3 and parts[3]:
-            agent["agent_role_ids"] = to_id_list(parts[3])
+
+        if len(parts) == 3:
+            # If 3 parts, check if part 2 is an explicit account type or a password
+            val2 = parts[2]
+            if val2.strip().lower() in KNOWN_PROFILES:
+                agent["profile"] = normalize_profile(val2, default=agent["profile"])
+            else:
+                agent["password"] = val2
+        elif len(parts) == 4:
+            if parts[2]:
+                agent["password"] = parts[2]
+            if parts[3]:
+                val3 = parts[3].strip().lower()
+                if val3 in KNOWN_PROFILES:
+                    agent["profile"] = normalize_profile(val3, default=agent["profile"])
+                else:
+                    agent["agent_role_ids"] = to_id_list(parts[3])
+        else:
+            if len(parts) > 2 and parts[2]:
+                agent["password"] = parts[2]
+            if len(parts) > 3 and parts[3]:
+                agent["agent_role_ids"] = to_id_list(parts[3])
+            if len(parts) > 4 and parts[4]:
+                agent["profile"] = normalize_profile(parts[4], default=agent["profile"])
 
         agents.append(agent)
 
@@ -228,6 +284,8 @@ def parse_agents_text(text_content, default_profile="all", default_role_ids=None
 def parse_agents_file(file_content_bytes, filename="", default_profile="all", default_role_ids=None):
     """
     Parses an uploaded Excel (.xlsx, .xls) or CSV file into a list of agent dicts.
+    Supports smart header detection (matching Email, Name, Nickname, Password, Role, Type/Profile)
+    with fallback to column index.
     Returns: (success: bool, agents: list, message: str)
     """
     import io
@@ -242,37 +300,124 @@ def parse_agents_file(file_content_bytes, filename="", default_profile="all", de
         else:
             df = pd.read_excel(io.BytesIO(file_content_bytes), header=None)
 
+        if df.empty:
+            return True, [], "File is empty."
+
         agents = []
-        for idx, row in df.iterrows():
-            if len(row) == 0 or pd.isna(row[0]):
-                continue
-            email_val = str(row[0]).strip()
-            if not email_val:
-                continue
+        default_prof = normalize_profile(default_profile, default="all")
 
-            if idx == 0 and any(h in email_val.lower() for h in ['email', '邮箱', 'agent', 'username', 'user']):
-                continue
+        # Smart Header Detection
+        header_row_idx = -1
+        email_col = -1
+        name_col = -1
+        nick_col = -1
+        pwd_col = -1
+        role_col = -1
+        profile_col = -1
 
-            if '@' not in email_val:
-                continue
+        # Check first 5 rows for header row
+        for r_idx in range(min(5, len(df))):
+            row_vals = [str(val).strip().lower() for val in df.iloc[r_idx] if not pd.isna(val)]
+            if any(any(h in v for h in ['email', '邮箱', '登录账号', '账号']) for v in row_vals):
+                header_row_idx = r_idx
+                for c_idx, cell in enumerate(df.iloc[r_idx]):
+                    if pd.isna(cell):
+                        continue
+                    c_str = str(cell).strip().lower()
+                    if email_col == -1 and any(h in c_str for h in ['email', '邮箱', '登录账号', '账号']):
+                        email_col = c_idx
+                    elif nick_col == -1 and any(h in c_str for h in ['昵称', 'nickname', 'nick_name', 'nick']):
+                        nick_col = c_idx
+                    elif name_col == -1 and any(h in c_str for h in ['姓名', 'name']):
+                        name_col = c_idx
+                    elif pwd_col == -1 and any(h in c_str for h in ['密码', 'password', '初始密码']):
+                        pwd_col = c_idx
+                    elif role_col == -1 and any(h in c_str for h in ['角色', 'role', 'role_id']):
+                        role_col = c_idx
+                    elif profile_col == -1 and any(h in c_str for h in ['员工类型', '账号类型', '客服类型', '类型', 'profile', 'type', 'account_type']):
+                        profile_col = c_idx
+                break
 
-            agent = {
-                "email": email_val,
-                "profile": default_profile
-            }
-            if default_role_ids:
-                agent["agent_role_ids"] = to_id_list(default_role_ids)
+        if header_row_idx != -1 and email_col != -1:
+            # Parse using detected header columns
+            for idx in range(header_row_idx + 1, len(df)):
+                row = df.iloc[idx]
+                if email_col >= len(row) or pd.isna(row[email_col]):
+                    continue
+                email_val = str(row[email_col]).strip()
+                if not email_val or '@' not in email_val:
+                    continue
 
-            if len(row) > 1 and not pd.isna(row[1]) and str(row[1]).strip():
-                val1 = str(row[1]).strip()
-                agent["name"] = val1
-                agent["nick_name"] = val1
-            if len(row) > 2 and not pd.isna(row[2]) and str(row[2]).strip():
-                agent["password"] = str(row[2]).strip()
-            if len(row) > 3 and not pd.isna(row[3]) and str(row[3]).strip():
-                agent["agent_role_ids"] = to_id_list(str(row[3]).strip())
+                agent = {
+                    "email": email_val.lower(),
+                    "profile": default_prof
+                }
+                if default_role_ids:
+                    agent["agent_role_ids"] = to_id_list(default_role_ids)
 
-            agents.append(agent)
+                name_val = str(row[name_col]).strip() if name_col != -1 and name_col < len(row) and not pd.isna(row[name_col]) else ""
+                nick_val = str(row[nick_col]).strip() if nick_col != -1 and nick_col < len(row) and not pd.isna(row[nick_col]) else ""
+
+                if name_val and nick_val:
+                    agent["name"] = name_val
+                    agent["nick_name"] = nick_val
+                elif name_val:
+                    agent["name"] = name_val
+                    agent["nick_name"] = name_val
+                elif nick_val:
+                    agent["name"] = nick_val
+                    agent["nick_name"] = nick_val
+
+                if pwd_col != -1 and pwd_col < len(row) and not pd.isna(row[pwd_col]):
+                    pwd_str = str(row[pwd_col]).strip()
+                    if pwd_str:
+                        agent["password"] = pwd_str
+
+                if role_col != -1 and role_col < len(row) and not pd.isna(row[role_col]):
+                    role_str = str(row[role_col]).strip()
+                    if role_str:
+                        agent["agent_role_ids"] = to_id_list(role_str)
+
+                if profile_col != -1 and profile_col < len(row) and not pd.isna(row[profile_col]):
+                    prof_str = str(row[profile_col]).strip()
+                    if prof_str:
+                        agent["profile"] = normalize_profile(prof_str, default=default_prof)
+
+                agents.append(agent)
+        else:
+            # Positional Fallback
+            for idx, row in df.iterrows():
+                if len(row) == 0 or pd.isna(row[0]):
+                    continue
+                email_val = str(row[0]).strip()
+                if not email_val:
+                    continue
+
+                if idx == 0 and any(h in email_val.lower() for h in ['email', '邮箱', 'agent', 'username', 'user']):
+                    continue
+
+                if '@' not in email_val:
+                    continue
+
+                agent = {
+                    "email": email_val.lower(),
+                    "profile": default_prof
+                }
+                if default_role_ids:
+                    agent["agent_role_ids"] = to_id_list(default_role_ids)
+
+                if len(row) > 1 and not pd.isna(row[1]) and str(row[1]).strip():
+                    val1 = str(row[1]).strip()
+                    agent["name"] = val1
+                    agent["nick_name"] = val1
+                if len(row) > 2 and not pd.isna(row[2]) and str(row[2]).strip():
+                    agent["password"] = str(row[2]).strip()
+                if len(row) > 3 and not pd.isna(row[3]) and str(row[3]).strip():
+                    agent["agent_role_ids"] = to_id_list(str(row[3]).strip())
+                if len(row) > 4 and not pd.isna(row[4]) and str(row[4]).strip():
+                    agent["profile"] = normalize_profile(str(row[4]).strip(), default=default_prof)
+
+                agents.append(agent)
 
         return True, agents, f"Successfully parsed {len(agents)} agent(s) from {filename or 'file'}."
     except Exception as e:
